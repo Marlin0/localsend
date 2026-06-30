@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalSend 跨网网页 P2P 直连</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background: #f0f2f5; color: #333; margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        .container { width: 95%; max-width: 850px; height: 96vh; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+        h2 { text-align: center; color: #1677ff; margin: 0 0 10px 0; font-size: 20px; }
+        .section { margin-bottom: 15px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 8px; background: #fafafa; }
+        .code-display { font-size: 32px; font-weight: bold; text-align: center; color: #52c41a; letter-spacing: 5px; margin: 10px 0; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 10px; font-size: 16px; text-align: center; border: 1px solid #d9d9d9; border-radius: 6px; margin-bottom: 10px; }
+        button { width: 100%; padding: 12px; font-size: 16px; background: #1677ff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #4096ff; }
+        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 13px; background: #fafafa; padding: 8px 12px; border-radius: 6px; border: 1px solid #f0f0f0; gap: 10px; flex-wrap: wrap; }
+        .status { font-weight: bold; color: #666; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .online-toggle { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 13px; color: #555; user-select: none; white-space: nowrap; flex-shrink: 0; }
+        #transfer-zone { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+        #msg-box { flex: 1; border: 1px solid #ddd; background: #eaeaea; overflow-y: auto; padding: 15px; margin-bottom: 10px; font-size: 14px; border-radius: 6px; display: flex; flex-direction: column; gap: 15px; }
+        .msg-row { display: flex; width: 100%; }
+        .msg-row.me { justify-content: flex-end; }
+        .msg-row.peer { justify-content: flex-start; }
+        .bubble { max-width: 80%; padding: 10px 14px; border-radius: 10px; word-break: break-word; line-height: 1.5; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: relative; }
+        .msg-row.me .bubble { background-color: #95ec69; color: #000; border-top-right-radius: 2px; }
+        .msg-row.peer .bubble { background-color: #ffffff; color: #000; border-top-left-radius: 2px; }
+        .chat-img { max-width: 100%; max-height: 240px; border-radius: 5px; cursor: pointer; display: block; object-fit: contain; background: #eee; }
+        .chat-file { color: #1677ff; text-decoration: none; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        .chat-file:hover { text-decoration: underline; }
+        .progress-panel { width: 230px; margin-top: 5px; font-size: 11px; color: #666; background: rgba(0,0,0,0.04); padding: 6px; border-radius: 4px; }
+        .progress-bar-bg { width: 100%; height: 6px; background: #e8e8e8; border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
+        .progress-bar-fill { width: 0%; height: 100%; background: #1890ff; transition: width 0.1s linear; }
+        .progress-meta { display: flex; justify-content: space-between; white-space: nowrap; font-family: monospace; align-items: center; flex-wrap: wrap; gap: 4px; }
+        .progress-meta span { margin-right: 4px; }
+        .recv-progress { color: #52c41a; font-weight: bold; }
+        .cancel-link { color: #ff4d4f; cursor: pointer; font-weight: bold; text-decoration: none; border: 1px solid #ff4d4f; padding: 1px 4px; border-radius: 3px; font-size: 10px; margin-left: 5px; transition: all 0.2s; }
+        .cancel-link:hover { background: #ff4d4f; color: white; }
+        .status-cancelled { color: #ff4d4f !important; font-weight: bold; }
+        .img-placeholder { width: 200px; height: 130px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #f0f0f0; border: 1px dashed #ccc; border-radius: 5px; color: #888; font-size: 12px; gap: 8px; }
+        .spinner { width: 20px; height: 20px; border: 2px solid #1890ff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .input-panel { display: flex; flex-direction: column; gap: 8px; }
+        #paste-preview-area { display: none; align-items: center; justify-content: space-between; gap: 10px; background: #f5f5f5; padding: 8px; border-radius: 6px; border: 1px dashed #ccc; width: 100%; }
+        .preview-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+        #paste-preview-img { max-height: 50px; max-width: 70px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
+        .preview-text { font-size: 12px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .remove-preview-btn { background: #ff4d4f; color: white; border: none; border-radius: 4px; padding: 5px 12px; cursor: pointer; font-size: 12px; font-weight: bold; flex-shrink: 0; width: auto; height: auto; white-space: nowrap; }
+        .remove-preview-btn:hover { background: #ff7875; }
+        .input-area { display: flex; gap: 6px; align-items: center; width: 100%; }
+        .input-area input[type="text"] { margin-bottom: 0; text-align: left; flex: 1; min-width: 0; }
+        .input-area button { width: auto; padding: 10px 14px; white-space: nowrap; margin-top: 0; flex-shrink: 0; }
+        .btn-action { background: #fa8c16; font-size: 16px; padding: 10px 12px; }
+        .btn-action:hover { background: #ff9c3a; }
+        .btn-screenshot { background: #722ed1; color: white; }
+        .btn-screenshot:hover { background: #9254de; }
+        #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; overflow: hidden; user-select: none; }
+        .lightbox-wrapper { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+        #lightbox-img { max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transform-origin: center center; cursor: grab; transition: transform 0.05s ease-out; will-change: transform; }
+        #lightbox-img:active { cursor: grabbing; }
+        .lightbox-controls { height: 60px; display: flex; gap: 15px; width: 100%; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 10001; }
+        .lightbox-btn { background: #1677ff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; white-space: nowrap; }
+        .lightbox-btn.close-btn { background: #555; }
+        .lightbox-btn:hover { opacity: 0.9; }
+        #screenshot-tip { display: none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 8px 16px; border-radius: 20px; z-index: 10000; font-size: 13px; pointer-events: none; text-align: center; width: 90%; max-width: 400px; }
+        .turn-config { margin-top: 10px; padding: 8px; background: #f9f9f9; border-radius: 6px; border: 1px solid #eee; }
+        .turn-config input { width: 100%; margin-bottom: 5px; font-size: 14px; padding: 6px; }
+        .turn-config .row { display: flex; gap: 6px; }
+        .turn-config .row input { flex: 1; }
+        .turn-toggle { cursor: pointer; color: #1677ff; font-size: 13px; }
+        .countdown { color: #fa8c16; font-weight: bold; margin-left: 10px; }
+        .retry-status { font-size: 12px; color: #ff4d4f; }
+    </style>
+</head>
+<body>
+
+<div id="screenshot-tip">提示：请在随后的弹出框内选择当前窗口或标签页完成截图</div>
+
+<div class="container">
+    <h2>LocalSend P2P 直连</h2>
+    
+    <div class="top-bar">
+        <div id="status" class="status">请配置服务器并选择角色</div>
+        <label class="online-toggle" id="online-toggle-container" style="display:none;">
+            <input type="checkbox" id="allow-share-status" checked onchange="toggleStatusSharing()"> 允许对方看我在线
+        </label>
+        <span id="countdown-display" class="countdown"></span>
+    </div>
+    
+    <div id="role-zone" class="section" style="text-align: center; margin-top: 10px;">
+        <p style="margin-top: 0; text-align: left; font-size: 14px; color: #666;">信令服务器地址：</p>
+        <input type="text" id="server-url" value="ws://127.0.0.1:8765" placeholder="例如: ws://107.173.201.133:8765">
+        
+        <div class="turn-config">
+            <div class="turn-toggle" onclick="toggleTurnConfig()">⚙️ TURN 配置 (点击展开)</div>
+            <div id="turn-config-area" style="display:none; margin-top:6px;">
+                <input type="text" id="turn-url" placeholder="TURN URL (如 turn:your-server:3478)" value="">
+                <div class="row">
+                    <input type="text" id="turn-username" placeholder="用户名 (可选)">
+                    <input type="text" id="turn-credential" placeholder="密码 (可选)">
+                </div>
+            </div>
+        </div>
+
+        <button onclick="chooseRole('sender')" style="background: #52c41a; margin-bottom: 10px;">我是发送方 (生成口令)</button>
+        <button onclick="chooseRole('receiver')" style="background: #1677ff;">我是接收方 (输入口令)</button>
+    </div>
+
+    <div id="sender-panel" class="section" style="display: none;">
+        <p style="text-align: center; margin: 0;">请将下方短口令告诉接收方：</p>
+        <div id="generated-code" class="code-display">000000</div>
+        <div style="text-align:center; font-size:13px; color:#888;">倒计时 <span id="sender-timer">5:00</span> 后自动取消</div>
+    </div>
+
+    <div id="receiver-panel" class="section" style="display: none;">
+        <p style="text-align: center; margin-top: 0;">请输入发送方屏幕上的 6 位口令：</p>
+        <input type="text" id="input-code" placeholder="输入 6 位数字" maxlength="6" inputmode="numeric" pattern="[0-9]*">
+        <button onclick="connectToRoom()">联络发送方</button>
+        <div style="text-align:center; font-size:12px; color:#999; margin-top:5px;" id="receiver-timer"></div>
+    </div>
+
+    <div id="transfer-zone">
+        <div id="msg-box"></div>
+        
+        <div class="input-panel">
+            <div id="paste-preview-area">
+                <div class="preview-left">
+                    <img id="paste-preview-img" src="" alt="预览">
+                    <span class="preview-text">图片已就绪，回车键发送</span>
+                </div>
+                <button class="remove-preview-btn" onclick="clearImagePreview()">取消</button>
+            </div>
+
+            <div class="input-area">
+                <input type="text" id="msg-input" placeholder="输入消息或在此粘贴(Ctrl+V)图片..." onkeypress="handleKeyPress(event)" onpaste="handlePaste(event)">
+                <input type="file" id="file-input" style="display: none;" onchange="sendFile()">
+                <button class="btn-action" title="发送文件/图片" onclick="document.getElementById('file-input').click()">📁</button>
+                <button class="btn-action btn-screenshot" title="屏幕截图并置入输入框" onclick="takeScreenshot()">✂️ 截图</button>
+                <button onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="lightbox" onclick="closeLightbox(event)">
+    <div class="lightbox-wrapper" id="lightbox-wrapper">
+        <img id="lightbox-img" src="" alt="放大查看" draggable="false">
+    </div>
+    <div class="lightbox-controls">
+        <button class="lightbox-btn" id="lightbox-download-btn">📥 下载原图</button>
+        <button class="lightbox-btn close-btn" onclick="closeLightbox(event)">关闭</button>
+    </div>
+</div>
+
+<script>
+    // ===================== 全局状态 =====================
+    const statusEl = document.getElementById('status');
+    let ws = null, peerConnection = null, dataChannel = null;
+    let myRole = '', roomCode = '';
+    let pendingFileMeta = null, receivedChunks = [];
+    let currentBlobToUrlMap = new Map();
+    let clipboardFile = null;
+    let allowShareStatus = true;
+    let checkOnlineInterval = null;
+    let peerIsOnline = true;
+    let isTransferCancelled = false;
+    let transferStats = { totalBytes: 0, receivedBytes: 0, startTime: 0, lastUpdatedTime: 0, lastId: null };
+    let isSending = false;
+    let sentBytes = 0;
+    let sendStartTime = 0;
+    const CHUNK_SIZE = 32768;
+
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
+    let reconnectTimer = null;
+    let isReconnecting = false;
+
+    let senderCountdownTimer = null;
+    let receiverTimeoutTimer = null;
+
+    let imgScale = 1, imgPosX = 0, imgPosY = 0, isDragging = false, startX = 0, startY = 0;
+
+    // ===================== RTC 配置 =====================
+    function getRtcConfig() {
+        const turnUrl = document.getElementById('turn-url').value.trim();
+        const config = {
+            iceServers: [
+                { urls: 'stun:stun.miwifi.com:3478' },
+                { urls: 'stun:stun.chat.bilibili.com:3478' },
+                { urls: 'stun:stun.hitv.com:3478' }
+            ]
+        };
+        if (turnUrl) {
+            const server = { urls: turnUrl };
+            const username = document.getElementById('turn-username').value.trim();
+            const credential = document.getElementById('turn-credential').value.trim();
+            if (username) server.username = username;
+            if (credential) server.credential = credential;
+            config.iceServers.push(server);
+        }
+        return config;
+    }
+
+    function toggleTurnConfig() {
+        const area = document.getElementById('turn-config-area');
+        area.style.display = area.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // ===================== UI 辅助 =====================
+    function setStatus(text, color = '#666') {
+        statusEl.innerText = text;
+        statusEl.style.color = color;
+    }
+
+    function updateStatusText() {
+        if (!dataChannel || dataChannel.readyState !== 'open') {
+            setStatus('🔴 传输通道已断开', '#ff4d4f');
+            return;
+        }
+        if (peerIsOnline) {
+            setStatus('🟢 P2P已直连 (对方在线)', '#52c41a');
+        } else {
+            setStatus('⏳ 对方未响应', '#fa8c16');
+        }
+    }
+
+    function escapeHTML(str) {
+        return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+    }
+
+    function appendMessage(role, text) {
+        const box = document.getElementById('msg-box');
+        box.innerHTML += `<div class="msg-row ${role}"><div class="bubble">${escapeHTML(text)}</div></div>`;
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function jsonStr(action, obj) {
+        return JSON.stringify({ action: action, ...obj });
+    }
+
+    // ===================== 清理定时器 =====================
+    function cleanupAllTimers() {
+        clearSenderCountdown();
+        clearReceiverTimeout();
+        if (checkOnlineInterval) {
+            clearInterval(checkOnlineInterval);
+            checkOnlineInterval = null;
+        }
+        if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+        }
+    }
+
+    // ===================== 信令与 WebRTC 初始化 =====================
+    function chooseRole(role) {
+        const serverUrl = document.getElementById('server-url').value.trim();
+        if (!serverUrl) return alert('请输入信令服务器地址！');
+        localStorage.setItem('localSendServerUrl', serverUrl);
+        myRole = role;
+        document.getElementById('role-zone').style.display = 'none';
+        connectSignaling(serverUrl, role);
+    }
+
+    function connectSignaling(serverUrl, role) {
+        cleanupAllTimers(); // 清理旧定时器
+        try {
+            ws = new WebSocket(serverUrl);
+        } catch (e) {
+            alert('WebSocket连接失败！' + e.message);
+            location.reload();
+            return;
+        }
+
+        ws.onopen = () => {
+            isReconnecting = false;
+            reconnectAttempts = 0;
+            if (role === 'sender') {
+                document.getElementById('sender-panel').style.display = 'block';
+                roomCode = Math.floor(100000 + Math.random() * 900000).toString();
+                document.getElementById('generated-code').innerText = roomCode;
+                setStatus('已在公网开辟房间，等待接收方...', '#52c41a');
+                ws.send(jsonStr('join', { room_id: roomCode, role: 'sender' }));
+                initWebRTC(true);
+                startSenderCountdown();
+            } else {
+                document.getElementById('receiver-panel').style.display = 'block';
+                setStatus('请输入 6 位配对口令', '#666');
+            }
+        };
+
+        ws.onclose = (event) => {
+            if (roomCode && !isReconnecting && !event.wasClean) {
+                attemptReconnect();
+            }
+        };
+
+        ws.onerror = (err) => {
+            setStatus('信令错误: ' + err.message, '#ff4d4f');
+        };
+
+        ws.onmessage = async (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                if (message.type === 'peer_ready') {
+                    if (myRole === 'sender') {
+                        clearSenderCountdown();
+                        setStatus('接收方已就绪，正在交换网络名片...', '#1677ff');
+                        // 检查 signalingState 避免重复创建 offer
+                        if (peerConnection && peerConnection.signalingState === 'stable') {
+                            try {
+                                const offer = await peerConnection.createOffer();
+                                await peerConnection.setLocalDescription(offer);
+                                ws.send(jsonStr('signal', { room_id: roomCode, data: offer }));
+                            } catch (e) {
+                                setStatus('创建Offer失败: ' + e.message, '#ff4d4f');
+                            }
+                        } else {
+                            setStatus('协商状态异常，跳过创建offer', '#fa8c16');
+                        }
+                    } else if (myRole === 'receiver') {
+                        clearReceiverTimeout();
+                        setStatus('已寻获发送方，等待协商...', '#1677ff');
+                    }
+                } else if (message.type === 'signal') {
+                    const signalData = message.data;
+                    try {
+                        if (signalData.type === 'offer') {
+                            await peerConnection.setRemoteDescription(new RTCSessionDescription(signalData));
+                            const answer = await peerConnection.createAnswer();
+                            await peerConnection.setLocalDescription(answer);
+                            ws.send(jsonStr('signal', { room_id: roomCode, data: answer }));
+                        } else if (signalData.type === 'answer') {
+                            await peerConnection.setRemoteDescription(new RTCSessionDescription(signalData));
+                        } else if (signalData.candidate) {
+                            await peerConnection.addIceCandidate(new RTCIceCandidate(signalData));
+                        }
+                    } catch (e) {
+                        setStatus('信令处理失败: ' + e.message, '#ff4d4f');
+                    }
+                }
+            } catch (e) {
+                console.warn('消息解析异常:', e);
+            }
+        };
+    }
+
+    function connectToRoom() {
+        const codeInput = document.getElementById('input-code');
+        let code = codeInput.value.trim();
+        code = code.replace(/\D/g, '');
+        if (code.length !== 6) {
+            alert('请输入6位数字口令！');
+            return;
+        }
+        roomCode = code;
+        setStatus('正在公网检索口令...', '#1677ff');
+        ws.send(jsonStr('join', { room_id: roomCode, role: 'receiver' }));
+        initWebRTC(false);
+        startReceiverTimeout();
+    }
+
+    function initWebRTC(isSender) {
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+        const config = getRtcConfig();
+        peerConnection = new RTCPeerConnection(config);
+
+        if (!isSender) {
+            dataChannel = peerConnection.createDataChannel('p2pChannel');
+            setupDataChannel(dataChannel);
+        } else {
+            peerConnection.ondatachannel = (event) => {
+                dataChannel = event.channel;
+                setupDataChannel(dataChannel);
+            };
+        }
+
+        peerConnection.onconnectionstatechange = () => {
+            const state = peerConnection.connectionState;
+            if (state === 'failed' || state === 'disconnected') {
+                setStatus('ICE连接失败，请检查网络或TURN配置', '#ff4d4f');
+            } else if (state === 'connected') {
+                setStatus('P2P连接建立成功', '#52c41a');
+            }
+        };
+
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                ws.send(jsonStr('signal', { room_id: roomCode, data: event.candidate }));
+            }
+        };
+    }
+
+    function setupDataChannel(channel) {
+        channel.onopen = () => {
+            peerIsOnline = true;
+            updateStatusText();
+            document.getElementById('online-toggle-container').style.display = 'flex';
+            document.getElementById('sender-panel').style.display = 'none';
+            document.getElementById('receiver-panel').style.display = 'none';
+            document.getElementById('transfer-zone').style.display = 'flex';
+            if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+            startOnlineStateTracker();
+        };
+
+        channel.onclose = () => {
+            if (!isReconnecting && roomCode) {
+                attemptReconnect();
+            }
+        };
+
+        channel.onmessage = (event) => {
+            if (typeof event.data === 'string') {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'text') {
+                        appendMessage('peer', data.content);
+                    } else if (data.type === 'file_meta') {
+                        pendingFileMeta = data;
+                        receivedChunks = [];
+                        isTransferCancelled = false;
+                        transferStats.totalBytes = data.size;
+                        transferStats.receivedBytes = 0;
+                        transferStats.startTime = Date.now();
+                        transferStats.lastUpdatedTime = Date.now();
+                        transferStats.lastId = data.id;
+                        appendPlaceholder('peer', data.id, data.name, data.fileType.startsWith('image/'));
+                        setStatus(`正在接收: ${data.name}...`, '#1677ff');
+                    } else if (data.type === 'file_end') {
+                        if (pendingFileMeta && !isTransferCancelled) {
+                            const blob = new Blob(receivedChunks, { type: pendingFileMeta.fileType });
+                            const url = URL.createObjectURL(blob);
+                            currentBlobToUrlMap.set(url, pendingFileMeta.name);
+                            finalizePlaceholder(pendingFileMeta.id, url, pendingFileMeta.name, pendingFileMeta.fileType.startsWith('image/'));
+                            pendingFileMeta = null;
+                            receivedChunks = [];
+                            peerIsOnline = true;
+                            updateStatusText();
+                            setStatus('文件接收完成', '#52c41a');
+                        }
+                    } else if (data.type === 'progress_feedback') {
+                        if (myRole === 'sender' && data.id) {
+                            updateRecvProgress(data.id, data.receivedBytes, data.speed, data.eta);
+                        }
+                    } else if (data.type === 'transfer_cancel') {
+                        handleRemoteCancel(data.id);
+                    } else if (data.type === 'ping') {
+                        if (allowShareStatus) {
+                            dataChannel.send(JSON.stringify({ type: 'pong' }));
+                        }
+                    } else if (data.type === 'pong') {
+                        peerIsOnline = true;
+                        updateStatusText();
+                    }
+                } catch (e) {
+                    appendMessage('peer', event.data);
+                }
+            } else {
+                if (isTransferCancelled) return;
+                receivedChunks.push(event.data);
+                transferStats.receivedBytes += event.data.byteLength;
+
+                let now = Date.now();
+                if (now - transferStats.lastUpdatedTime > 250 || transferStats.receivedBytes === transferStats.totalBytes) {
+                    let elapsed = (now - transferStats.startTime) / 1000;
+                    let speed = elapsed > 0 ? (transferStats.receivedBytes / elapsed) : 0;
+                    let remainingBytes = transferStats.totalBytes - transferStats.receivedBytes;
+                    let eta = speed > 0 ? Math.ceil(remainingBytes / speed) : 0;
+
+                    updateProgressBarElements(transferStats.lastId, transferStats.receivedBytes, transferStats.totalBytes, speed, eta);
+
+                    try {
+                        dataChannel.send(JSON.stringify({
+                            type: 'progress_feedback',
+                            id: transferStats.lastId,
+                            receivedBytes: transferStats.receivedBytes,
+                            speed: speed,
+                            eta: eta
+                        }));
+                    } catch (e) {}
+                    transferStats.lastUpdatedTime = now;
+                }
+            }
+        };
+    }
+
+    // ===================== 重连逻辑 =====================
+    function attemptReconnect() {
+        if (isReconnecting || reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            setStatus('重连失败，请手动刷新页面', '#ff4d4f');
+            return;
+        }
+        isReconnecting = true;
+        reconnectAttempts++;
+        const delay = Math.pow(2, reconnectAttempts - 1) * 1000;
+        setStatus(`尝试重连 (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`, '#fa8c16');
+
+        cleanupAllTimers(); // 清理定时器
+
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(() => {
+            // 关闭旧连接
+            if (ws) { try { ws.close(); } catch(e) {} }
+            if (peerConnection) { try { peerConnection.close(); } catch(e) {} }
+            if (dataChannel) { try { dataChannel.close(); } catch(e) {} }
+            // 重新连接
+            const serverUrl = document.getElementById('server-url').value.trim();
+            connectSignaling(serverUrl, myRole);
+        }, delay);
+    }
+
+    // ===================== 发送方倒计时 =====================
+    let senderTimerSeconds = 300;
+
+    function startSenderCountdown() {
+        senderTimerSeconds = 300;
+        const display = document.getElementById('sender-timer');
+        if (senderCountdownTimer) clearInterval(senderCountdownTimer);
+        senderCountdownTimer = setInterval(() => {
+            senderTimerSeconds--;
+            if (senderTimerSeconds <= 0) {
+                clearInterval(senderCountdownTimer);
+                senderCountdownTimer = null;
+                setStatus('⏰ 口令超时，已自动取消房间', '#ff4d4f');
+                if (ws && ws.readyState === WebSocket.OPEN) ws.close();
+                if (peerConnection) peerConnection.close();
+                if (dataChannel) dataChannel.close();
+                resetToRoleSelection();
+                return;
+            }
+            const mins = Math.floor(senderTimerSeconds / 60);
+            const secs = senderTimerSeconds % 60;
+            display.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }, 1000);
+    }
+
+    function clearSenderCountdown() {
+        if (senderCountdownTimer) {
+            clearInterval(senderCountdownTimer);
+            senderCountdownTimer = null;
+        }
+        document.getElementById('sender-timer').textContent = '';
+    }
+
+    // ===================== 接收方超时 =====================
+    function startReceiverTimeout() {
+        if (receiverTimeoutTimer) clearTimeout(receiverTimeoutTimer);
+        receiverTimeoutTimer = setTimeout(() => {
+            setStatus('⏰ 未找到房间，请检查口令', '#ff4d4f');
+            resetToRoleSelection();
+        }, 30000);
+        document.getElementById('receiver-timer').textContent = '等待连接 (30秒超时)';
+    }
+
+    function clearReceiverTimeout() {
+        if (receiverTimeoutTimer) {
+            clearTimeout(receiverTimeoutTimer);
+            receiverTimeoutTimer = null;
+        }
+        document.getElementById('receiver-timer').textContent = '';
+    }
+
+    // ===================== 重置UI =====================
+    function resetToRoleSelection() {
+        cleanupAllTimers();
+        if (ws) { try { ws.close(); } catch(e) {} }
+        if (peerConnection) { try { peerConnection.close(); } catch(e) {} }
+        if (dataChannel) { try { dataChannel.close(); } catch(e) {} }
+        ws = null; peerConnection = null; dataChannel = null;
+        roomCode = '';
+        isReconnecting = false;
+        reconnectAttempts = 0;
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        document.getElementById('role-zone').style.display = 'block';
+        document.getElementById('sender-panel').style.display = 'none';
+        document.getElementById('receiver-panel').style.display = 'none';
+        document.getElementById('transfer-zone').style.display = 'none';
+        document.getElementById('online-toggle-container').style.display = 'none';
+        setStatus('请配置服务器并选择角色', '#666');
+    }
+
+    // ===================== 在线状态跟踪 =====================
+    function toggleStatusSharing() {
+        allowShareStatus = document.getElementById('allow-share-status').checked;
+    }
+
+    function startOnlineStateTracker() {
+        if (checkOnlineInterval) clearInterval(checkOnlineInterval);
+        checkOnlineInterval = setInterval(() => {
+            if (!dataChannel || dataChannel.readyState !== 'open') {
+                updateStatusText();
+                return;
+            }
+            if (pendingFileMeta || isTransferCancelled) return;
+            peerIsOnline = false;
+            try {
+                dataChannel.send(JSON.stringify({ type: 'ping' }));
+            } catch (e) {}
+            setTimeout(updateStatusText, 1000);
+        }, 5000);
+    }
+
+    // ===================== 消息与文件发送 =====================
+    function handleKeyPress(e) {
+        if (e.key === 'Enter') sendMessage();
+    }
+
+    function sendMessage() {
+        if (clipboardFile) { sendClipboardImage(); return; }
+        const input = document.getElementById('msg-input');
+        const text = input.value.trim();
+        if (!text || !dataChannel || dataChannel.readyState !== 'open') return;
+        dataChannel.send(JSON.stringify({ type: 'text', content: text }));
+        appendMessage('me', text);
+        input.value = '';
+    }
+
+    function sendFile() {
+        const fileInput = document.getElementById('file-input');
+        const file = fileInput.files[0];
+        if (!file || !dataChannel || dataChannel.readyState !== 'open') return;
+        executeFileSending(file);
+        fileInput.value = '';
+    }
+
+    function executeFileSending(file) {
+        const fileId = 'msg_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+        const isImg = file.type.startsWith('image/');
+        isTransferCancelled = false;
+        isSending = true;
+        sentBytes = 0;
+        sendStartTime = Date.now();
+
+        appendPlaceholder('me', fileId, file.name, isImg);
+        transferStats.totalBytes = file.size;
+        setStatus(`发送元数据: ${file.name}...`, '#1677ff');
+
+        dataChannel.send(JSON.stringify({
+            type: 'file_meta',
+            id: fileId,
+            name: file.name,
+            size: file.size,
+            fileType: file.type
+        }));
+
+        let offset = 0;
+        const reader = new FileReader();
+
+        const readNextChunk = () => {
+            if (isTransferCancelled || !isSending) {
+                return;
+            }
+            if (offset >= file.size) {
+                dataChannel.send(JSON.stringify({ type: 'file_end' }));
+                const fileUrl = URL.createObjectURL(file);
+                currentBlobToUrlMap.set(fileUrl, file.name);
+                finalizePlaceholder(fileId, fileUrl, file.name, isImg);
+                setStatus('文件发送完成', '#52c41a');
+                isSending = false;
+                return;
+            }
+            const slice = file.slice(offset, offset + CHUNK_SIZE);
+            reader.readAsArrayBuffer(slice);
+        };
+
+        reader.onload = async (e) => {
+            if (isTransferCancelled) {
+                return;
+            }
+            const buffer = e.target.result;
+            while (dataChannel.bufferedAmount > 1048576) {
+                if (isTransferCancelled) return;
+                await new Promise(r => setTimeout(r, 30));
+            }
+            dataChannel.send(buffer);
+            sentBytes += buffer.byteLength;
+            offset += buffer.byteLength;
+
+            updateSendProgress(fileId, sentBytes, file.size);
+
+            readNextChunk();
+        };
+
+        reader.onerror = () => {
+            setStatus('文件读取失败', '#ff4d4f');
+            isSending = false;
+        };
+
+        readNextChunk();
+    }
+
+    function updateSendProgress(id, sent, total) {
+        const bar = document.getElementById(`bar-fill-${id}`);
+        const percentEl = document.getElementById(`percent-${id}`);
+        const speedEl = document.getElementById(`speed-${id}`);
+        const etaEl = document.getElementById(`eta-${id}`);
+        if (!bar) return;
+
+        const pct = Math.min(100, Math.floor((sent / total) * 100));
+        bar.style.width = pct + '%';
+        percentEl.innerText = pct + '%';
+
+        const elapsed = (Date.now() - sendStartTime) / 1000;
+        const speed = elapsed > 0 ? (sent / elapsed) : 0;
+        const speedMB = speed / (1024 * 1024);
+        speedEl.innerText = speedMB.toFixed(2) + ' MB/s';
+
+        if (pct >= 100) {
+            etaEl.innerText = '完成';
+            const cBtn = document.getElementById(`cancel-btn-${id}`);
+            if (cBtn) cBtn.style.display = 'none';
+        } else {
+            const remaining = total - sent;
+            const eta = speed > 0 ? Math.ceil(remaining / speed) : 0;
+            if (eta === 0 || isNaN(eta)) {
+                etaEl.innerText = '剩余 --:--';
+            } else {
+                let m = Math.floor(eta / 60);
+                let s = eta % 60;
+                etaEl.innerText = `剩余 ${m}:${s < 10 ? '0' : ''}${s}`;
+            }
+        }
+    }
+
+    function updateRecvProgress(id, received, speed, eta) {
+        const recvEl = document.getElementById(`recv-percent-${id}`);
+        if (!recvEl) return;
+        const total = transferStats.totalBytes || 1;
+        const pct = Math.min(100, Math.floor((received / total) * 100));
+        recvEl.innerText = `📥 接收 ${pct}%`;
+    }
+
+    // ===================== 进度条UI =====================
+    function appendPlaceholder(role, id, filename, isImg) {
+        const box = document.getElementById('msg-box');
+        let contentHtml = '';
+        if (isImg) {
+            contentHtml = `<div class="img-placeholder" id="placeholder-body-${id}"><div class="spinner"></div><span>图片拼命加载中...</span></div>`;
+        } else {
+            contentHtml = `<div class="chat-file" id="placeholder-body-${id}">📁 ${filename} (准备传输)</div>`;
+        }
+
+        const recvHtml = (myRole === 'sender') ? `<span id="recv-percent-${id}" class="recv-progress">📥 接收 0%</span>` : '';
+
+        box.innerHTML += `
+            <div class="msg-row ${role}" id="${id}">
+                <div class="bubble">
+                    ${contentHtml}
+                    <div class="progress-panel" id="progress-panel-${id}">
+                        <div class="progress-bar-bg"><div class="progress-bar-fill" id="bar-fill-${id}"></div></div>
+                        <div class="progress-meta">
+                            <span id="percent-${id}">0%</span>
+                            <span id="speed-${id}">0.00 MB/s</span>
+                            <span id="eta-${id}">剩余 --:--</span>
+                            ${recvHtml}
+                            <a class="cancel-link" id="cancel-btn-${id}" onclick="cancelTransfer('${id}')">🛑 取消</a>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        setTimeout(() => { box.scrollTop = box.scrollHeight; }, 30);
+    }
+
+    function updateProgressBarElements(id, received, total, speed, eta) {
+        const bar = document.getElementById(`bar-fill-${id}`);
+        const percentEl = document.getElementById(`percent-${id}`);
+        const speedEl = document.getElementById(`speed-${id}`);
+        const etaEl = document.getElementById(`eta-${id}`);
+        if (!bar || isTransferCancelled) return;
+
+        let pct = Math.min(100, Math.floor((received / total) * 100));
+        bar.style.width = pct + '%';
+        percentEl.innerText = pct + '%';
+
+        let speedMB = speed / (1024 * 1024);
+        speedEl.innerText = speedMB.toFixed(2) + ' MB/s';
+
+        if (pct >= 100) {
+            etaEl.innerText = '完成';
+            const cBtn = document.getElementById(`cancel-btn-${id}`);
+            if (cBtn) cBtn.style.display = 'none';
+        } else if (eta === 0 || isNaN(eta)) {
+            etaEl.innerText = '剩余 --:--';
+        } else {
+            let m = Math.floor(eta / 60);
+            let s = eta % 60;
+            etaEl.innerText = `剩余 ${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+    }
+
+    function finalizePlaceholder(id, url, filename, isImg) {
+        if (isTransferCancelled) return;
+        const row = document.getElementById(id);
+        if (!row) return;
+        const panel = document.getElementById(`progress-panel-${id}`);
+        if (panel) panel.style.display = 'none';
+        const bodyContainer = document.getElementById(`placeholder-body-${id}`);
+        if (!bodyContainer) return;
+
+        if (isImg) {
+            bodyContainer.outerHTML = `<img src="${url}" class="chat-img" alt="${filename}" title="点击放大/滚轮拖拽查看" onclick="openLightbox('${url}')">`;
+        } else {
+            bodyContainer.outerHTML = `
+                <a href="${url}" download="${filename}" class="chat-file">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                    ${filename}
+                </a>`;
+        }
+        const box = document.getElementById('msg-box');
+        setTimeout(() => { box.scrollTop = box.scrollHeight; }, 50);
+    }
+
+    // ===================== 取消传输 =====================
+    function cancelTransfer(id) {
+        if (isTransferCancelled) return;
+        isTransferCancelled = true;
+        if (myRole === 'sender') {
+            isSending = false;
+        }
+        try {
+            if (dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(JSON.stringify({ type: 'transfer_cancel', id: id }));
+            }
+        } catch (e) {}
+        applyCancelledStyle(id, '已取消传输');
+        if (myRole === 'receiver') {
+            receivedChunks = [];
+            pendingFileMeta = null;
+        }
+        updateStatusText();
+    }
+
+    function handleRemoteCancel(id) {
+        isTransferCancelled = true;
+        if (myRole === 'sender') {
+            isSending = false;
+        }
+        applyCancelledStyle(id, '对方已取消传输');
+        if (myRole === 'receiver') {
+            receivedChunks = [];
+            pendingFileMeta = null;
+        }
+        updateStatusText();
+    }
+
+    function applyCancelledStyle(id, text) {
+        const barFill = document.getElementById(`bar-fill-${id}`);
+        if (barFill) barFill.style.backgroundColor = '#ff4d4f';
+        const percentEl = document.getElementById(`percent-${id}`);
+        if (percentEl) {
+            percentEl.innerText = text;
+            percentEl.classList.add('status-cancelled');
+        }
+        const speedEl = document.getElementById(`speed-${id}`);
+        if (speedEl) speedEl.style.display = 'none';
+        const etaEl = document.getElementById(`eta-${id}`);
+        if (etaEl) etaEl.style.display = 'none';
+        const recvEl = document.getElementById(`recv-percent-${id}`);
+        if (recvEl) recvEl.style.display = 'none';
+        const placeholderBody = document.getElementById(`placeholder-body-${id}`);
+        if (placeholderBody && placeholderBody.classList.contains('img-placeholder')) {
+            placeholderBody.innerHTML = `<span class="status-cancelled">❌ 传输中断</span>`;
+            placeholderBody.style.borderColor = '#ff4d4f';
+        }
+        const cancelBtn = document.getElementById(`cancel-btn-${id}`);
+        if (cancelBtn) cancelBtn.style.display = 'none';
+    }
+
+    // ===================== 粘贴与截图 =====================
+    function handlePaste(e) {
+        const items = (e.clipboardData || window.clipboardData).items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                setupImagePreview(items[i].getAsFile(), 'Paste_' + Date.now() + '.png');
+                e.preventDefault();
+                break;
+            }
+        }
+    }
+
+    async function takeScreenshot() {
+        const tip = document.getElementById('screenshot-tip');
+        tip.style.display = 'block';
+        try {
+            const captureStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            const videoTrack = captureStream.getVideoTracks()[0];
+            const video = document.createElement('video');
+            video.srcObject = captureStream;
+            video.autoplay = true;
+            video.onloadedmetadata = () => {
+                setTimeout(() => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                    videoTrack.stop();
+                    tip.style.display = 'none';
+                    canvas.toBlob((blob) => {
+                        setupImagePreview(blob, 'Capture_' + Date.now() + '.png');
+                    }, 'image/png');
+                }, 300);
+            };
+        } catch (err) {
+            tip.style.display = 'none';
+            setStatus('截图取消或失败', '#fa8c16');
+        }
+    }
+
+    function setupImagePreview(blob, filename) {
+        clipboardFile = new File([blob], filename, { type: blob.type });
+        document.getElementById('paste-preview-img').src = URL.createObjectURL(blob);
+        document.getElementById('paste-preview-area').style.display = 'flex';
+        document.getElementById('msg-input').placeholder = '图片已锁定，按回车直接发送...';
+        document.getElementById('msg-input').focus();
+    }
+
+    function clearImagePreview() {
+        clipboardFile = null;
+        document.getElementById('paste-preview-area').style.display = 'none';
+        document.getElementById('msg-input').placeholder = '输入消息或在此粘贴(Ctrl+V)图片...';
+    }
+
+    function sendClipboardImage() {
+        if (!clipboardFile) return;
+        executeFileSending(clipboardFile);
+        clearImagePreview();
+    }
+
+    // ===================== 图片查看器 =====================
+    function initLightboxEvents() {
+        const lightbox = document.getElementById('lightbox');
+        const wrapper = document.getElementById('lightbox-wrapper');
+        const img = document.getElementById('lightbox-img');
+        wrapper.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const speed = 0.12;
+            if (e.deltaY < 0) imgScale += speed;
+            else imgScale = Math.max(0.15, imgScale - speed);
+            applyImgTransform();
+        }, { passive: false });
+        img.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            isDragging = true;
+            startX = e.clientX - imgPosX;
+            startY = e.clientY - imgPosY;
+            e.stopPropagation();
+        });
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            imgPosX = e.clientX - startX;
+            imgPosY = e.clientY - startY;
+            applyImgTransform();
+        });
+        window.addEventListener('mouseup', () => { isDragging = false; });
+        img.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            resetLightboxState();
+        });
+    }
+
+    function applyImgTransform() {
+        document.getElementById('lightbox-img').style.transform = `translate(${imgPosX}px, ${imgPosY}px) scale(${imgScale})`;
+    }
+    function resetLightboxState() {
+        imgScale = 1; imgPosX = 0; imgPosY = 0; isDragging = false;
+        applyImgTransform();
+    }
+    function openLightbox(url) {
+        const lightbox = document.getElementById('lightbox');
+        const img = document.getElementById('lightbox-img');
+        resetLightboxState();
+        img.src = url;
+        document.getElementById('lightbox-download-btn').onclick = (e) => {
+            e.stopPropagation();
+            downloadFile(url, currentBlobToUrlMap.get(url) || 'image.png');
+        };
+        lightbox.style.display = 'flex';
+    }
+    function closeLightbox(e) {
+        if (e.target.closest('.lightbox-controls') || e.target.id === 'lightbox-img') return;
+        document.getElementById('lightbox').style.display = 'none';
+    }
+    function downloadFile(url, filename) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+    }
+
+    // ===================== 初始化 =====================
+    window.addEventListener('DOMContentLoaded', () => {
+        const savedUrl = localStorage.getItem('localSendServerUrl');
+        if (savedUrl) document.getElementById('server-url').value = savedUrl;
+        initLightboxEvents();
+
+        const codeInput = document.getElementById('input-code');
+        codeInput.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '').slice(0, 6);
+        });
+    });
+
+    window.resetToRoleSelection = resetToRoleSelection;
+</script>
+</body>
+</html>
