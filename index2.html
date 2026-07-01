@@ -140,13 +140,13 @@
     </div>
 </div>
 
-<div id="lightbox" onclick="closeLightbox(event)">
+<div id="lightbox">
     <div class="lightbox-wrapper" id="lightbox-wrapper">
         <img id="lightbox-img" src="" alt="放大查看" draggable="false">
     </div>
-    <div class="lightbox-controls">
+    <div class="lightbox-controls" id="lightbox-controls">
         <button class="lightbox-btn" id="lightbox-download-btn">📥 下载原图</button>
-        <button class="lightbox-btn close-btn" onclick="closeLightbox(event)">关闭</button>
+        <button class="lightbox-btn close-btn" id="lightbox-close-btn">关闭</button>
     </div>
 </div>
 
@@ -161,22 +161,13 @@
 
     const CHUNK_SIZE = 32768; 
     let imgScale = 1; let imgPosX = 0; let imgPosY = 0; let isDragging = false; let startX = 0; startY = 0;
-    let iceConnectionTimer = null; // 用于打洞超时监测
+    let iceConnectionTimer = null; 
 
-    // WebRTC 配置（已预留 TURN 支持模版）
     const rtcConfig = {
         iceServers: [
             { urls: 'stun:stun.miwifi.com:3478' },
             { urls: 'stun:stun.chat.bilibili.com:3478' },
             { urls: 'stun:stun.hitv.com:3478' }
-            /*
-            // [标准 TURN 扩容模版，消除 NAT 穿透失败]
-            ,{
-                urls: 'turn:your.turn.server:3478',
-                username: 'your_username',
-                credential: 'your_password'
-            }
-            */
         ]
     };
 
@@ -210,8 +201,6 @@
 
         ws.onmessage = async (event) => {
             const message = JSON.parse(event.data);
-            
-            // 加入错误处理弹窗（服务端限流告警对接）
             if (message.type === "error") {
                 alert(message.message);
                 statusEl.innerText = message.message;
@@ -253,7 +242,6 @@
     function initWebRTC(isSender) {
         peerConnection = new RTCPeerConnection(rtcConfig);
         
-        // --- 15 秒打洞网络质量探活超时检测 ---
         iceConnectionTimer = setTimeout(() => {
             if (peerConnection && peerConnection.connectionState !== 'connected') {
                 statusEl.innerText = "⚠️ 打洞失败，当前网络环境受限（如严格对称型NAT），请尝试切换网络或配置 TURN 中转服务器。";
@@ -287,10 +275,8 @@
     }
 
     function setupDataChannel(channel) {
-        // --- 基于底层缓冲区事件的高级背压控制配置 ---
-        channel.bufferedAmountLowThreshold = 262144; // 触底水位线设为 256KB
+        channel.bufferedAmountLowThreshold = 262144; 
         channel.onbufferedamountlow = () => {
-            // 当缓存低于水位线时，纯事件驱动调用读取下一切片
             if (window.onDataChannelBufferLow) window.onDataChannelBufferLow();
         };
 
@@ -331,7 +317,7 @@
                             pendingFileMeta = null; receivedChunks = []; peerIsOnline = true; updateStatusText();
                         }
                     } else if (data.type === "transfer_cancel") {
-                        handleRemoteCancel(data.id); // 接收远端中止指令，双向同步取消
+                        handleRemoteCancel(data.id);
                     } else if (data.type === "ping") {
                         if (allowShareStatus) dataChannel.send(JSON.stringify({ type: "pong" }));
                     } else if (data.type === "pong") {
@@ -351,7 +337,6 @@
                     let remainingBytes = transferStats.totalBytes - transferStats.receivedBytes;
                     let eta = speed > 0 ? Math.ceil(remainingBytes / speed) : 0;
 
-                    // 接收方更新自身的下载UI
                     updateProgressBarElements(transferStats.lastId, transferStats.receivedBytes, transferStats.totalBytes, speed, eta);
                     transferStats.lastUpdatedTime = now;
                 }
@@ -363,17 +348,17 @@
         isTransferCancelled = true;
         try {
             if(dataChannel && dataChannel.readyState === 'open') {
-                dataChannel.send(JSON.stringify({ type: "transfer_cancel", id: id })); // 通知对方终止
+                dataChannel.send(JSON.stringify({ type: "transfer_cancel", id: id }));
             }
         } catch(e){}
         applyCancelledStyle(id, "已取消传输");
-        receivedChunks = []; pendingFileMeta = null; updateStatusText(); // 释放内存
+        receivedChunks = []; pendingFileMeta = null; updateStatusText();
     }
 
     function handleRemoteCancel(id) {
         isTransferCancelled = true;
         applyCancelledStyle(id, "对方已取消传输");
-        receivedChunks = []; pendingFileMeta = null; updateStatusText(); // 同步释放缓存
+        receivedChunks = []; pendingFileMeta = null; updateStatusText();
     }
 
     function applyCancelledStyle(id, text) {
@@ -440,7 +425,6 @@
         
         appendPlaceholder("me", fileId, file.name, isImg);
         
-        // 发送方实时独立进度统计
         let senderStats = { totalBytes: file.size, sentBytes: 0, startTime: Date.now(), lastUpdatedTime: Date.now() };
         statusEl.innerText = `发送元数据: ${file.name}...`;
         
@@ -458,19 +442,16 @@
         const readNextChunk = () => {
             if (isTransferCancelled) { window.onDataChannelBufferLow = null; return; }
             if (offset >= file.size) {
-                // 全部发送完毕
                 dataChannel.send(JSON.stringify({ type: "file_end" }));
                 const fileUrl = URL.createObjectURL(file);
                 currentBlobToUrlMap.set(fileUrl, file.name);
                 finalizePlaceholder(fileId, fileUrl, file.name, isImg);
                 updateStatusText();
-                window.onDataChannelBufferLow = null; // 清理事件
+                window.onDataChannelBufferLow = null;
                 return;
             }
 
-            // 彻底废弃 while + setTimeout，基于 RTC 事件触发压榨带宽
             if (dataChannel.bufferedAmount > dataChannel.bufferedAmountLowThreshold) {
-                // 当缓存高于阈值，暂停切片读取，挂载委托等待 onbufferedamountlow 触发
                 window.onDataChannelBufferLow = readNextChunk;
                 return;
             }
@@ -488,7 +469,6 @@
                 offset += buffer.byteLength;
                 senderStats.sentBytes += buffer.byteLength;
 
-                // 本地计算 UI，摆脱信号回传的延迟感
                 let now = Date.now();
                 if (now - senderStats.lastUpdatedTime > 250 || senderStats.sentBytes === senderStats.totalBytes) {
                     let elapsed = (now - senderStats.startTime) / 1000;
@@ -554,7 +534,6 @@
         speedEl.innerText = speedMB.toFixed(2) + " MB/s";
 
         if (pct >= 100) {
-            htmlEl = "完成";
             etaEl.innerText = "完成";
             const cBtn = document.getElementById(`cancel-btn-${id}`);
             if(cBtn) cBtn.style.display = 'none';
@@ -634,16 +613,43 @@
     function sendClipboardImage() { if (!clipboardFile) return; executeFileSending(clipboardFile); clearImagePreview(); }
 
     function initLightboxEvents() {
-        const lightbox = document.getElementById('lightbox'); const wrapper = document.getElementById('lightbox-wrapper'); const img = document.getElementById('lightbox-img');
+        const wrapper = document.getElementById('lightbox-wrapper'); 
+        const img = document.getElementById('lightbox-img');
+        const closeBtn = document.getElementById('lightbox-close-btn');
+
+        // 滚轮缩放图片
         wrapper.addEventListener('wheel', (e) => {
             e.preventDefault(); const speed = 0.12;
             if (e.deltaY < 0) imgScale += speed; else imgScale = Math.max(0.15, imgScale - speed);
             applyImgTransform();
         }, { passive: false });
-        img.addEventListener('mousedown', (e) => { if (e.button !== 0) return; isDragging = true; startX = e.clientX - imgPosX; startY = e.clientY - imgPosY; e.stopPropagation(); });
-        window.addEventListener('mousemove', (e) => { if (!isDragging) return; imgPosX = e.clientX - startX; imgPosY = e.clientY - startY; applyImgTransform(); });
+
+        // 图片拖拽逻辑
+        img.addEventListener('mousedown', (e) => { 
+            if (e.button !== 0) return; 
+            isDragging = true; 
+            startX = e.clientX - imgPosX; 
+            startY = e.clientY - imgPosY; 
+            e.stopPropagation(); 
+        });
+        window.addEventListener('mousemove', (e) => { 
+            if (!isDragging) return; 
+            imgPosX = e.clientX - startX; 
+            imgPosY = e.clientY - startY; 
+            applyImgTransform(); 
+        });
         window.addEventListener('mouseup', () => { isDragging = false; });
         img.addEventListener('dblclick', (e) => { e.stopPropagation(); resetLightboxState(); });
+
+        // 精准关闭绑定：点击黑色遮罩区域（wrapper）或点击关闭按钮时才关闭
+        wrapper.addEventListener('click', (e) => {
+            if (e.target === wrapper) {
+                document.getElementById('lightbox').style.display = 'none';
+            }
+        });
+        closeBtn.addEventListener('click', () => {
+            document.getElementById('lightbox').style.display = 'none';
+        });
     }
 
     function applyImgTransform() { document.getElementById('lightbox-img').style.transform = `translate(${imgPosX}px, ${imgPosY}px) scale(${imgScale})`; }
@@ -654,7 +660,6 @@
         document.getElementById('lightbox-download-btn').onclick = (e) => { e.stopPropagation(); downloadFile(url, currentBlobToUrlMap.get(url) || "image.png"); };
         lightbox.style.display = 'flex';
     }
-    function closeLightbox(e) { if (!e.target.classList.contains('close-btn') && e.target.closest('.lightbox-controls')) return; document.getElementById('lightbox').style.display = 'none'; }
     function jsonStr(action, obj) { return JSON.stringify({ action: action, ...obj }); }
     
     function appendMessage(role, text) {
