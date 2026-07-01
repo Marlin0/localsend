@@ -1,5 +1,5 @@
 *, *::before, *::after { box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background: #f0f2f5; color: #333; margin: 0; height: 100vh; height: 100dvh; display: flex; justify-content: center; align-items: center; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background: #f0f2f5; color: #333; margin: 0; height: 100vh; height: 100dvh; display: flex; justify-content: center; align-items: center; }
 
 .container { width: 95%; max-width: 850px; height: 96vh; height: 96dvh; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
 h2 { text-align: center; color: #1677ff; margin: 0 0 10px 0; font-size: 20px; }
@@ -37,16 +37,19 @@ button:hover { background: #4096ff; }
 .chat-file { color: #1677ff; text-decoration: none; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px; }
 .chat-file:hover { text-decoration: underline; }
 
-/* 🎬 视频播放与下载组件样式 */
-.video-container { display: flex; flex-direction: column; gap: 6px; max-width: 320px; width: 100%; }
-.chat-video { width: 100%; max-height: 200px; border-radius: 6px; background: #000; }
-.video-download-btn { background: rgba(0,0,0,0.06); color: #1677ff; border: 1px solid #1677ff; padding: 4px 8px; font-size: 11px; border-radius: 4px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: max-content; }
-.video-download-btn:hover { background: #1677ff; color: white; }
+/* 🎬 视频直播组件布局与单独下载链接 */
+.video-wrapper { display: flex; flex-direction: column; gap: 4px; max-width: 320px; width: 100%; }
+.chat-video { max-width: 100%; max-height: 240px; border-radius: 6px; background: #000; display: block; }
+.video-down-link { font-size: 11px; color: #1677ff; text-decoration: none; font-weight: bold; align-self: flex-start; }
+.video-down-link:hover { text-decoration: underline; }
+.msg-row.me .video-down-link { align-self: flex-end; color: #0050b3; }
 
-/* 🔊 微信式语音消息条样式 */
-.chat-voice-bar { display: flex; align-items: center; gap: 8px; cursor: pointer; min-width: 60px; max-width: 220px; user-select: none; font-weight: 500; padding: 2px 0; }
-.msg-row.me .chat-voice-bar { flex-direction: row-reverse; }
-.voice-wave-icon { font-size: 15px; }
+/* 🔊 微信风格语音条气泡 */
+.chat-audio-bubble { display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 75px; user-select: none; }
+.audio-wave-icon { font-size: 16px; transform: scaleX(-1); }
+.msg-row.me .audio-wave-icon { transform: none; order: 2; }
+.audio-duration { font-size: 12px; color: #666; font-family: monospace; }
+.msg-row.me .audio-duration { order: 1; color: #333; }
 
 .progress-panel { width: 230px; margin-top: 5px; font-size: 11px; color: #666; background: rgba(0,0,0,0.04); padding: 6px; border-radius: 4px; }
 .progress-bar-bg { width: 100%; height: 6px; background: #e8e8e8; border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
@@ -70,19 +73,28 @@ button:hover { background: #4096ff; }
 .remove-preview-btn { background: #ff4d4f; color: white; border: none; border-radius: 4px; padding: 5px 12px; cursor: pointer; font-size: 12px; font-weight: bold; flex-shrink: 0; width: auto; height: auto; white-space: nowrap; }
 .remove-preview-btn:hover { background: #ff7875; }
 
-.input-area { display: flex; gap: 6px; align-items: center; width: 100%; }
-.input-area input[type="text"], #msg-voice-touch-btn { margin-bottom: 0; text-align: left; flex: 1; min-width: 0; height: 42px; font-size: 15px; }
-#msg-voice-touch-btn { display: flex; align-items: center; justify-content: center; font-weight: bold; border-radius: 6px; -webkit-user-select: none; user-select: none; touch-action: none; }
-#msg-voice-touch-btn.recording-active { background: #ddd !important; color: #000; }
+.input-area { display: flex; gap: 6px; align-items: center; width: 100%; position: relative; }
+.input-area input[type="text"] { margin-bottom: 0; text-align: left; flex: 1; min-width: 0; }
+.input-area button { width: auto; padding: 10px 14px; white-space: nowrap; margin-top: 0; flex-shrink: 0; }
 
-.input-area button { width: auto; padding: 10px 14px; white-space: nowrap; margin-top: 0; flex-shrink: 0; height: 42px; }
-.btn-action { background: #fa8c16; font-size: 16px; padding: 10px 12px !important; }
+/* 🎤 按住说话独立语音条控制 */
+.btn-audio-talk { background: #f5f5f5; color: #333; border: 1px solid #d9d9d9; user-select: none; touch-action: none; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.btn-audio-talk:active, .btn-audio-talk.recording { background: #d9d9d9; color: #000; }
+
+.btn-action { background: #fa8c16; font-size: 16px; padding: 10px 12px; }
 .btn-action:hover { background: #ff9c3a; }
 .btn-screenshot { background: #722ed1; color: white; }
 .btn-screenshot:hover { background: #9254de; }
 
 .btn-mobile-media { background: #2f54eb; color: white; display: none; padding: 10px 8px !important; font-size: 14px; }
 .btn-mobile-media:hover { background: #597ef7; }
+
+/* 🎚️ 微信同款录音中央指示浮层 */
+#audio-record-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 20000; justify-content: center; align-items: center; pointer-events: none; }
+.audio-record-box { width: 150px; height: 150px; background: rgba(0, 0, 0, 0.75); border-radius: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; color: white; font-size: 14px; text-align: center; padding: 10px; }
+.audio-record-box.cancel-state { background: rgba(204, 51, 51, 0.9); }
+.audio-icon-anim { font-size: 40px; animation: pulse 0.6s infinite alternate; }
+@keyframes pulse { from { transform: scale(0.9); } to { transform: scale(1.1); } }
 
 #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; overflow: hidden; user-select: none; }
 .lightbox-wrapper { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
@@ -94,7 +106,6 @@ button:hover { background: #4096ff; }
 .lightbox-btn.close-btn { background: #555; }
 .lightbox-btn.paint-btn { background: #fa8c16; }
 .lightbox-btn:hover { opacity: 0.9; }
-
 #screenshot-tip { display: none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 8px 16px; border-radius: 20px; z-index: 10000; font-size: 13px; pointer-events: none; text-align: center; width: 90%; max-width: 400px; }
 
 #paint-container { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10005; background: rgba(15,15,15,0.96); flex-direction: column; justify-content: center; align-items: center; }
@@ -113,8 +124,8 @@ button:hover { background: #4096ff; }
 .history-btn { background: #444; color: #fff; border: 1px solid #666; font-size: 12px; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; flex-shrink: 0; }
 .history-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-/* 🎤 录音弹窗遮罩 */
-#voice-recording-overlay { display: none; position: fixed; top: 0; left: 0; width:100%; height:100%; background:transparent; z-index:10002; justify-content:center; align-items:center; pointer-events:none; }
-.voice-overlay-card { background: rgba(0,0,0,0.75); padding: 25px; border-radius: 12px; text-align: center; color: white; display: flex; flex-direction: column; align-items: center; gap: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-.voice-wave-anim { font-size: 40px; animation: voicePulse 1s infinite ease-in-out; }
-@keyframes voicePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+/* 📱 响应式极端屏幕适配优化 */
+@media screen and (max-width: 520px) {
+    .input-area input[type="text"] { display: block; }
+    .btn-screenshot { display: none !important; }
+}
