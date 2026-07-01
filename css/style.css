@@ -37,20 +37,6 @@ button:hover { background: #4096ff; }
 .chat-file { color: #1677ff; text-decoration: none; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px; }
 .chat-file:hover { text-decoration: underline; }
 
-/* 🎬 视频直播组件布局与单独下载链接 */
-.video-wrapper { display: flex; flex-direction: column; gap: 4px; max-width: 320px; width: 100%; }
-.chat-video { max-width: 100%; max-height: 240px; border-radius: 6px; background: #000; display: block; }
-.video-down-link { font-size: 11px; color: #1677ff; text-decoration: none; font-weight: bold; align-self: flex-start; }
-.video-down-link:hover { text-decoration: underline; }
-.msg-row.me .video-down-link { align-self: flex-end; color: #0050b3; }
-
-/* 🔊 微信风格语音条气泡 */
-.chat-audio-bubble { display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 75px; user-select: none; }
-.audio-wave-icon { font-size: 16px; transform: scaleX(-1); }
-.msg-row.me .audio-wave-icon { transform: none; order: 2; }
-.audio-duration { font-size: 12px; color: #666; font-family: monospace; }
-.msg-row.me .audio-duration { order: 1; color: #333; }
-
 .progress-panel { width: 230px; margin-top: 5px; font-size: 11px; color: #666; background: rgba(0,0,0,0.04); padding: 6px; border-radius: 4px; }
 .progress-bar-bg { width: 100%; height: 6px; background: #e8e8e8; border-radius: 3px; overflow: hidden; margin-bottom: 4px; }
 .progress-bar-fill { width: 0%; height: 100%; background: #1890ff; transition: width 0.1s linear; }
@@ -73,35 +59,26 @@ button:hover { background: #4096ff; }
 .remove-preview-btn { background: #ff4d4f; color: white; border: none; border-radius: 4px; padding: 5px 12px; cursor: pointer; font-size: 12px; font-weight: bold; flex-shrink: 0; width: auto; height: auto; white-space: nowrap; }
 .remove-preview-btn:hover { background: #ff7875; }
 
-.input-area { display: flex; gap: 6px; align-items: center; width: 100%; position: relative; }
+.input-area { display: flex; gap: 6px; align-items: center; width: 100%; }
 .input-area input[type="text"] { margin-bottom: 0; text-align: left; flex: 1; min-width: 0; }
 .input-area button { width: auto; padding: 10px 14px; white-space: nowrap; margin-top: 0; flex-shrink: 0; }
-
-/* 🎤 按住说话独立语音条控制 */
-.btn-audio-talk { background: #f5f5f5; color: #333; border: 1px solid #d9d9d9; user-select: none; touch-action: none; display: flex; align-items: center; justify-content: center; font-size: 15px; }
-.btn-audio-talk:active, .btn-audio-talk.recording { background: #d9d9d9; color: #000; }
-
 .btn-action { background: #fa8c16; font-size: 16px; padding: 10px 12px; }
 .btn-action:hover { background: #ff9c3a; }
 .btn-screenshot { background: #722ed1; color: white; }
 .btn-screenshot:hover { background: #9254de; }
 
+/* 📱 手机端选图按钮细化：缩小外衬，为主输入框拓展横向环境 */
 .btn-mobile-media { background: #2f54eb; color: white; display: none; padding: 10px 8px !important; font-size: 14px; }
 .btn-mobile-media:hover { background: #597ef7; }
-
-/* 🎚️ 微信同款录音中央指示浮层 */
-#audio-record-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 20000; justify-content: center; align-items: center; pointer-events: none; }
-.audio-record-box { width: 150px; height: 150px; background: rgba(0, 0, 0, 0.75); border-radius: 16px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; color: white; font-size: 14px; text-align: center; padding: 10px; }
-.audio-record-box.cancel-state { background: rgba(204, 51, 51, 0.9); }
-.audio-icon-anim { font-size: 40px; animation: pulse 0.6s infinite alternate; }
-@keyframes pulse { from { transform: scale(0.9); } to { transform: scale(1.1); } }
 
 #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; overflow: hidden; user-select: none; }
 .lightbox-wrapper { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
 #lightbox-img { max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transform-origin: center center; cursor: grab; transition: transform 0.05s ease-out; will-change: transform; touch-action: none; }
 #lightbox-img:active { cursor: grabbing; }
 
+/* ⚙️ 核心改进：开启弹性包裹换行，剔除死板的单行不换行，使手机端完美自适应 */
 .lightbox-controls { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; width: 100%; justify-content: center; align-items: center; background: rgba(0,0,0,0.8); z-index: 10001; padding: 10px; flex-shrink: 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); }
+
 .lightbox-btn { background: #1677ff; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .lightbox-btn.close-btn { background: #555; }
 .lightbox-btn.paint-btn { background: #fa8c16; }
@@ -123,9 +100,3 @@ button:hover { background: #4096ff; }
 
 .history-btn { background: #444; color: #fff; border: 1px solid #666; font-size: 12px; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; flex-shrink: 0; }
 .history-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-/* 📱 响应式极端屏幕适配优化 */
-@media screen and (max-width: 520px) {
-    .input-area input[type="text"] { display: block; }
-    .btn-screenshot { display: none !important; }
-}

@@ -2,20 +2,13 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LocalSend 跨网网页 P2P 直连</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <div id="screenshot-tip">提示：请在随后的弹出框内选择当前窗口或标签页完成截图</div>
-
-<div id="audio-record-overlay">
-    <div class="audio-record-box">
-        <div class="audio-icon-anim">🎙️</div>
-        <div id="audio-record-tip">正在录音...</div>
-    </div>
-</div>
 
 <div class="container">
     <h2>LocalSend P2P 直连</h2>
@@ -59,16 +52,14 @@
 
             <div class="input-area">
                 <input type="text" id="msg-input" placeholder="输入消息或在此粘贴(Ctrl+V)图片..." onkeypress="handleKeyPress(event)" onpaste="handlePaste(event)">
-                
-                <button id="btn-audio-record" class="btn-audio-talk">🎤 按住 说话</button>
-                
                 <input type="file" id="file-input" style="display: none;" onchange="sendFile()">
                 
                 <button class="btn-action" id="btn-desktop-file" title="发送文件/图片" onclick="document.getElementById('file-input').click()">📁</button>
                 <button class="btn-action btn-screenshot" id="btn-desktop-screenshot" title="屏幕截图并置入输入框" onclick="takeScreenshot()">✂️ 截图</button>
+                
                 <button class="btn-action btn-mobile-media" id="btn-mobile-chooser" title="拍照或选择照片" onclick="document.getElementById('file-input').click()">🖼️ 选图</button>
                 
-                <button onclick="sendMessage()" id="btn-send-text">发送</button>
+                <button onclick="sendMessage()">发送</button>
             </div>
         </div>
     </div>

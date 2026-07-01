@@ -9,10 +9,6 @@ let transferStats = { totalBytes: 0, receivedBytes: 0, startTime: 0, lastUpdated
 const CHUNK_SIZE = 32768; 
 let iceConnectionTimer = null; 
 
-// 语音录制核心上下文变量
-let mediaRecorder = null; let audioChunks = []; let audioStartTime = 0;
-let isRecordingActive = false; let recordStartY = 0; let isCancelDetected = false;
-
 const rtcConfig = {
     iceServers: [
         { urls: 'stun:stun.miwifi.com:3478' },
@@ -68,9 +64,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
     document.body.addEventListener('click', () => SoundEngine.init(), { once: true });
     document.body.addEventListener('touchstart', () => SoundEngine.init(), { once: true });
-    
-    // 初始化语音录制交互监听
-    initAudioRecordFeature();
 });
 
 function handleReceiverCodeKeyPress(e) {
@@ -188,24 +181,14 @@ function setupDataChannel(channel) {
                     pendingFileMeta = data; receivedChunks = []; isTransferCancelled = false;
                     transferStats.totalBytes = data.size; transferStats.receivedBytes = 0;
                     transferStats.startTime = Date.now(); transferStats.lastUpdatedTime = Date.now(); transferStats.lastId = data.id;
-                    
-                    let isImg = data.fileType.startsWith("image/");
-                    let isVid = data.fileType.startsWith("video/");
-                    let isAud = data.fileType.startsWith("audio/") || data.name.endsWith(".opus") || data.name.endsWith(".webm") || data.name.endsWith(".wav");
-                    
-                    appendPlaceholder("peer", data.id, data.name, isImg, isVid, isAud);
+                    appendPlaceholder("peer", data.id, data.name, data.fileType.startsWith("image/"));
                     SoundEngine.play('msg');
                 } else if (data.type === "file_end") {
                     if (pendingFileMeta && !isTransferCancelled) {
                         const blob = new Blob(receivedChunks, { type: pendingFileMeta.fileType });
                         const url = URL.createObjectURL(blob);
                         currentBlobToUrlMap.set(url, pendingFileMeta.name);
-                        
-                        let isImg = pendingFileMeta.fileType.startsWith("image/");
-                        let isVid = pendingFileMeta.fileType.startsWith("video/");
-                        let isAud = pendingFileMeta.fileType.startsWith("audio/") || pendingFileMeta.name.endsWith(".opus") || pendingFileMeta.name.endsWith(".webm") || pendingFileMeta.name.endsWith(".wav");
-                        
-                        finalizePlaceholder(pendingFileMeta.id, url, pendingFileMeta.name, isImg, isVid, isAud);
+                        finalizePlaceholder(pendingFileMeta.id, url, pendingFileMeta.name, pendingFileMeta.fileType.startsWith("image/"));
                         pendingFileMeta = null; receivedChunks = []; peerIsOnline = true; updateStatusText();
                         SoundEngine.play('done');
                     }
@@ -242,9 +225,7 @@ function applyCancelledStyle(id, text) {
     const barFill = document.getElementById(`bar-fill-${id}`); if (barFill) barFill.style.backgroundColor = '#ff4d4f';
     const percentEl = document.getElementById(`percent-${id}`); if (percentEl) percentEl.innerText = text;
     const placeholderBody = document.getElementById(`placeholder-body-${id}`);
-    if (placeholderBody && (placeholderBody.classList.contains('img-placeholder') || placeholderBody.classList.contains('video-wrapper'))) {
-        placeholderBody.innerHTML = `<span class="status-cancelled">❌ 传输中断</span>`;
-    }
+    if (placeholderBody && placeholderBody.classList.contains('img-placeholder')) placeholderBody.innerHTML = `<span class="status-cancelled">❌ 传输中断</span>`;
 }
 function updateStatusText() {
     const isOpen = dataChannel && dataChannel.readyState === 'open';
@@ -279,12 +260,8 @@ function sendFile() {
 
 function executeFileSending(file) {
     const fileId = "msg_" + Date.now() + "_" + Math.floor(Math.random()*1000);
-    const isImg = file.type.startsWith("image/");
-    const isVid = file.type.startsWith("video/");
-    const isAud = file.type.startsWith("audio/") || file.name.endsWith(".opus") || file.name.endsWith(".webm") || file.name.endsWith(".wav");
-    
-    isTransferCancelled = false;
-    appendPlaceholder("me", fileId, file.name, isImg, isVid, isAud);
+    const isImg = file.type.startsWith("image/"); isTransferCancelled = false;
+    appendPlaceholder("me", fileId, file.name, isImg);
     let senderStats = { totalBytes: file.size, sentBytes: 0, startTime: Date.now(), lastUpdatedTime: Date.now() };
     dataChannel.send(JSON.stringify({ type: "file_meta", id: fileId, name: file.name, size: file.size, fileType: file.type }));
 
@@ -294,7 +271,7 @@ function executeFileSending(file) {
         if (offset >= file.size) {
             dataChannel.send(JSON.stringify({ type: "file_end" }));
             const fileUrl = URL.createObjectURL(file); currentBlobToUrlMap.set(fileUrl, file.name);
-            finalizePlaceholder(fileId, fileUrl, file.name, isImg, isVid, isAud); updateStatusText(); 
+            finalizePlaceholder(fileId, fileUrl, file.name, isImg); updateStatusText(); 
             SoundEngine.play('done');
             return;
         }
@@ -317,23 +294,12 @@ function executeFileSending(file) {
     window.onDataChannelBufferLow = readNextChunk; readNextChunk();
 }
 
-function appendPlaceholder(role, id, filename, isImg, isVid, isAud) {
+function appendPlaceholder(role, id, filename, isImg) {
     const box = document.getElementById('msg-box');
-    let contentHtml = "";
-    if (isImg) {
-        contentHtml = `<div class="img-placeholder" id="placeholder-body-${id}"><div class="spinner"></div><span>加载图片中...</span></div>`;
-    } else if (isVid) {
-        contentHtml = `<div class="video-wrapper" id="placeholder-body-${id}"><div class="img-placeholder" style="width:100%;"><div class="spinner"></div><span>缓冲视频中...</span></div></div>`;
-    } else if (isAud) {
-        contentHtml = `<div id="placeholder-body-${id}">🔊 语音传输中...</div>`;
-    } else {
-        contentHtml = `<div class="chat-file" id="placeholder-body-${id}">📁 ${filename}</div>`;
-    }
-    
+    let contentHtml = isImg ? `<div class="img-placeholder" id="placeholder-body-${id}"><div class="spinner"></div><span>加载中...</span></div>` : `<div class="chat-file" id="placeholder-body-${id}">📁 ${filename}</div>`;
     box.innerHTML += `<div class="msg-row ${role}" id="${id}"><div class="bubble">${contentHtml}<div class="progress-panel" id="progress-panel-${id}"><div class="progress-bar-bg"><div class="progress-bar-fill" id="bar-fill-${id}"></div></div><div class="progress-meta"><span id="percent-${id}">0%</span><span id="speed-${id}">0.00 MB/s</span><span id="eta-${id}">剩余 --:--</span><a class="cancel-link" id="cancel-btn-${id}" onclick="cancelTransfer('${id}')">🛑 取消</a></div></div></div></div>`;
     setTimeout(() => { box.scrollTop = box.scrollHeight; }, 30);
 }
-
 function updateProgressBarElements(id, received, total, speedBytes, etaSeconds) {
     const bar = document.getElementById(`bar-fill-${id}`); if(!bar || isTransferCancelled) return;
     let pct = Math.min(100, Math.floor((received / total) * 100)); bar.style.width = pct + "%";
@@ -346,132 +312,12 @@ function updateProgressBarElements(id, received, total, speedBytes, etaSeconds) 
         document.getElementById(`eta-${id}`).innerText = `剩余 ${Math.floor(etaSeconds / 60)}:${etaSeconds % 60 < 10 ? '0' : ''}${etaSeconds % 60}`;
     }
 }
-
-function finalizePlaceholder(id, url, filename, isImg, isVid, isAud) {
+function finalizePlaceholder(id, url, filename, isImg) {
     if(isTransferCancelled) return;
     if(document.getElementById(`progress-panel-${id}`)) document.getElementById(`progress-panel-${id}`).style.display = 'none';
     const bodyContainer = document.getElementById('placeholder-body-' + id); if(!bodyContainer) return;
-    
-    if (isImg) {
-        bodyContainer.outerHTML = `<img src="${url}" class="chat-img" alt="${filename}" onclick="openLightbox('${url}')">`;
-    } else if (isVid) {
-        // 直接在聊天窗口内渲染视频标签并提供专门按钮下载
-        bodyContainer.outerHTML = `
-            <div class="video-wrapper">
-                <video src="${url}" class="chat-video" controls playsinline preload="metadata"></video>
-                <a href="${url}" download="${filename}" class="video-down-link">📥 下载视频 (${filename})</a>
-            </div>`;
-    } else if (isAud) {
-        // 解析时长并渲染为微信同款短语音条
-        let durationText = "语音 ''";
-        if (filename.includes("_dur_")) {
-            let parts = filename.split("_dur_");
-            if (parts.length > 1) durationText = Math.ceil(parseFloat(parts[1])) + '"';
-        }
-        bodyContainer.outerHTML = `
-            <div class="chat-audio-bubble" onclick="playChatAudio(this, '${url}')">
-                <span class="audio-wave-icon">🔊</span>
-                <span class="audio-duration">${durationText}</span>
-            </div>`;
-    } else {
-        bodyContainer.outerHTML = `<a href="${url}" download="${filename}" class="chat-file">📁 ${filename}</a>`;
-    }
+    bodyContainer.outerHTML = isImg ? `<img src="${url}" class="chat-img" alt="${filename}" onclick="openLightbox('${url}')">` : `<a href="${url}" download="${filename}" class="chat-file">📁 ${filename}</a>`;
     setTimeout(() => { document.getElementById('msg-box').scrollTop = document.getElementById('msg-box').scrollHeight; }, 50);
-}
-
-/* 微信风格点击播放语音核心函数 */
-function playChatAudio(element, url) {
-    const icon = element.querySelector('.audio-wave-icon');
-    icon.innerText = "⚡"; 
-    const audio = new Audio(url);
-    audio.onended = () => { icon.innerText = "🔊"; };
-    audio.onerror = () => { icon.innerText = "❌"; };
-    audio.play();
-}
-
-/* 🎤 微信语音组件：按住说话、上划取消状态机系统 */
-function initAudioRecordFeature() {
-    const recordBtn = document.getElementById('btn-audio-record');
-    const overlay = document.getElementById('audio-record-overlay');
-    const tip = document.getElementById('audio-record-tip');
-    
-    if(!recordBtn) return;
-    
-    // 指针按下（支持鼠标和触屏）
-    recordBtn.addEventListener('pointerdown', async (e) => {
-        if (!dataChannel || dataChannel.readyState !== 'open') { return alert("直连尚未建立，无法录制语音！"); }
-        e.preventDefault();
-        recordBtn.setPointerCapture(e.pointerId);
-        
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioChunks = [];
-            audioStartTime = Date.now();
-            isCancelDetected = false;
-            isRecordingActive = true;
-            recordStartY = e.clientY;
-            
-            // 设定兼容多端的录音格式
-            let options = { mimeType: 'audio/webm' };
-            if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) options = { mimeType: 'audio/ogg;codecs=opus' };
-            
-            mediaRecorder = new MediaRecorder(stream, options);
-            mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunks.push(event.data); };
-            
-            mediaRecorder.onstop = () => {
-                stream.getTracks().forEach(track => track.stop());
-                if (isCancelDetected) { audioChunks = []; return; } // 取消发送
-                
-                const duration = (Date.now() - audioStartTime) / 1000;
-                if (duration < 0.8) { alert("说话时间太短！"); return; }
-                
-                const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-                // 将时长编码至文件名，便于接收端优雅提取
-                const ext = mediaRecorder.mimeType.includes('ogg') ? '.opus' : '.webm';
-                const audioFile = new File([audioBlob], `Audio_${Date.now()}_dur_${duration}${ext}`, { type: audioBlob.type });
-                executeFileSending(audioFile);
-            };
-            
-            mediaRecorder.start();
-            recordBtn.classList.add('recording');
-            overlay.style.display = 'flex';
-            tip.innerText = "正在录音，上划取消";
-            document.querySelector('.audio-record-box').classList.remove('cancel-state');
-        } catch (err) {
-            alert("无法获取麦克风权限: " + err.message);
-        }
-    });
-
-    // 指针滑动侦测（检测是否上划）
-    recordBtn.addEventListener('pointermove', (e) => {
-        if (!isRecordingActive) return;
-        let deltaY = recordStartY - e.clientY; // 往上滑动为正值
-        if (deltaY > 50) {
-            isCancelDetected = true;
-            tip.innerText = "松开手指，取消发送";
-            document.querySelector('.audio-record-box').classList.add('cancel-state');
-        } else {
-            isCancelDetected = false;
-            tip.innerText = "正在录音，上划取消";
-            document.querySelector('.audio-record-box').classList.remove('cancel-state');
-        }
-    });
-
-    // 指针抬起发送
-    recordBtn.addEventListener('pointerup', (e) => {
-        if (!isRecordingActive) return;
-        isRecordingActive = false;
-        recordBtn.releasePointerCapture(e.pointerId);
-        recordBtn.classList.remove('recording');
-        overlay.style.display = 'none';
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') { mediaRecorder.stop(); }
-    });
-    
-    recordBtn.addEventListener('pointercancel', (e) => {
-        isRecordingActive = false; isCancelDetected = true;
-        recordBtn.classList.remove('recording'); overlay.style.display = 'none';
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') { mediaRecorder.stop(); }
-    });
 }
 
 function handlePaste(e) {
