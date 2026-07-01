@@ -79,25 +79,28 @@
         #lightbox-img { max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transform-origin: center center; cursor: grab; transition: transform 0.05s ease-out; will-change: transform; touch-action: none; }
         #lightbox-img:active { cursor: grabbing; }
         
-        .lightbox-controls { height: 60px; display: flex; gap: 8px; width: 100%; justify-content: center; align-items: center; background: rgba(0,0,0,0.7); z-index: 10001; padding: 0 10px; flex-shrink: 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); }
-        .lightbox-btn { background: #1677ff; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; }
+        .lightbox-controls { height: 60px; display: flex; gap: 6px; width: 100%; justify-content: center; align-items: center; background: rgba(0,0,0,0.7); z-index: 10001; padding: 0 10px; flex-shrink: 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); flex-wrap: wrap; height: auto; padding: 8px; }
+        .lightbox-btn { background: #1677ff; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; }
         .lightbox-btn.close-btn { background: #555; }
         .lightbox-btn.paint-btn { background: #fa8c16; }
         .lightbox-btn:hover { opacity: 0.9; }
         #screenshot-tip { display: none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 8px 16px; border-radius: 20px; z-index: 10000; font-size: 13px; pointer-events: none; text-align: center; width: 90%; max-width: 400px; }
 
-        /* 专属可缩放/平移的高级画布视口 */
+        /* 高级画布视口 */
         #paint-container { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10005; background: rgba(15,15,15,0.96); flex-direction: column; justify-content: center; align-items: center; }
-        #paint-canvas-viewport { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; cursor: crosshair; }
+        #paint-canvas-viewport { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; cursor: crosshair; touch-action: none; }
         #paint-canvas { box-shadow: 0 4px 25px rgba(0,0,0,0.8); background: transparent; transform-origin: center center; will-change: transform; transition: transform 0.02s linear; display: block; }
         
-        .toolbar-top { background: rgba(255,255,255,0.12); width: 100%; padding: 8px 12px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 10006; }
+        .toolbar-top { background: rgba(255,255,255,0.12); width: 100%; padding: 8px 12px; display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 10006; }
         .toolbar-group { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); }
         .toolbar-label { font-size: 12px; color: #ccc; font-weight: bold; }
         .tool-select { background: #333; color: white; border: 1px solid #555; border-radius: 4px; padding: 4px 6px; font-size: 12px; cursor: pointer; outline: none; }
         .tool-color { border: none; padding: 0; width: 28px; height: 24px; background: transparent; cursor: pointer; vertical-align: middle; }
         .tool-range { width: 65px; cursor: pointer; accent-color: #fa8c16; vertical-align: middle; }
         .paint-tip { font-size: 11px; color: #aaa; margin-left: 5px; white-space: nowrap; }
+        
+        .history-btn { background: #444; color: #fff; border: 1px solid #666; font-size: 12px; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .history-btn:disabled { opacity: 0.3; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -162,13 +165,13 @@
     <div class="lightbox-controls" id="lightbox-controls">
         <button class="lightbox-btn" id="lightbox-true-size-btn" style="background:#52c41a;">🔍 100%原图细节</button>
         <button class="lightbox-btn" id="lightbox-reset-btn">🔄 重置自适应</button>
-        <button class="lightbox-btn" id="lightbox-download-btn">📥 下载原图</button>
+        <button class="lightbox-btn" id="lightbox-download-btn">📥 保存原图到相册</button>
         <button class="lightbox-btn paint-btn" id="lightbox-paint-btn">🎨 涂鸦修改</button>
         <button class="lightbox-btn close-btn" id="lightbox-close-btn">关闭</button>
     </div>
 </div>
 
-<!-- 可无限缩放平移的精细化涂鸦图层 -->
+<!-- 移动端融合缩放平移的精细化涂鸦层 -->
 <div id="paint-container">
     <div class="toolbar-top">
         <div class="toolbar-group">
@@ -178,7 +181,6 @@
                 <option value="rect">⬜ 绘制矩形</option>
                 <option value="circle">⭕ 绘制圆形</option>
                 <option value="text">🔤 插入文字</option>
-                <option value="pan">✋ 拖拽画布(手机单指)</option>
             </select>
         </div>
         <div class="toolbar-group">
@@ -190,14 +192,17 @@
             <input type="range" id="paint-size" class="tool-range" min="3" max="40" value="6">
             <span id="size-val" style="font-size:11px; color:#fff; font-family:monospace; min-width:14px;">6px</span>
         </div>
-        <span class="paint-tip">💡 提示：双指或鼠标滚轮可无限缩放图片；右键可直接拖拽平移。</span>
+        <div class="toolbar-group">
+            <button id="paint-undo-btn" class="history-btn" disabled>↩️ 撤销</button>
+            <button id="paint-redo-btn" class="history-btn" disabled>↪️ 前进</button>
+        </div>
     </div>
     <div id="paint-canvas-viewport">
         <canvas id="paint-canvas"></canvas>
     </div>
     <div class="lightbox-controls">
-        <button class="lightbox-btn close-btn" id="paint-reset-cam-btn">🎯 缩放复位</button>
-        <button class="lightbox-btn close-btn" id="paint-clear-btn">🧹 清除涂鸦</button>
+        <button class="lightbox-btn close-btn" id="paint-reset-cam-btn">🎯 视图自适应</button>
+        <button class="lightbox-btn" style="background:#2f54eb;" id="paint-save-local-btn">💾 保存修改到相册</button>
         <button class="lightbox-btn paint-btn" id="paint-send-btn">🚀 一键发送修改图</button>
         <button class="lightbox-btn close-btn" id="paint-exit-btn">退出</button>
     </div>
@@ -216,19 +221,29 @@
     let imgScale = 1; let imgPosX = 0; let imgPosY = 0; let isDragging = false; let startX = 0; let startY = 0;
     let iceConnectionTimer = null; 
 
-    // 灯箱缩放控制变量
+    // 灯箱手势
     let startTouchDist = 0; let startTouchScale = 1;
 
-    // 💡 涂鸦画布核心相机状态机 (Viewport Camera)
+    // 💡 涂鸦画布核心历史及状态机
     let currentLightboxImgUrl = "";
     let isDrawing = false;
     let paintStartX = 0; let paintStartY = 0;
     let canvasHistoryBackup = null; 
+    let baseImageObj = null;
 
-    // 涂鸦时的变换参数（支持缩放与平移）
+    // 历史记录双栈存储结构
+    let undoStack = [];
+    let redoStack = [];
+
+    // 变换相机参数
     let camScale = 1; let camPosX = 0; let camPosY = 0;
     let isCamPanning = false; let camStartX = 0; let camStartY = 0;
-    let pViewportTouchDist = 0; let pViewportTouchScale = 1;
+    
+    // 手机端双指无缝复合缩放+位移辅助点
+    let pViewportTouchDist = 0; 
+    let pViewportTouchScale = 1;
+    let pViewportTouchMidX = 0;
+    let pViewportTouchMidY = 0;
 
     const paintCanvas = document.getElementById('paint-canvas');
     const paintCtx = paintCanvas.getContext('2d');
@@ -567,7 +582,7 @@
         document.getElementById('lightbox').style.display = 'flex';
     }
 
-    // --- 💡 核心高级可缩放平移涂鸦系统 ---
+    // --- 💡 核心高级可缩放平移涂鸦系统（集成无缝双指交互 & 无限历史控制） ---
     function initPaintEvents() {
         const paintBtn = document.getElementById('lightbox-paint-btn');
         const paintContainer = document.getElementById('paint-container');
@@ -575,24 +590,63 @@
         const colorInput = document.getElementById('paint-color');
         const sizeInput = document.getElementById('paint-size');
         const sizeValSpan = document.getElementById('size-val');
+        
+        const undoBtn = document.getElementById('paint-undo-btn');
+        const redoBtn = document.getElementById('paint-redo-btn');
 
         sizeInput.addEventListener('input', () => { sizeValSpan.innerText = sizeInput.value + "px"; });
 
+        // 💡 压入历史队列
+        function pushToHistory() {
+            undoStack.push(paintCtx.getImageData(0, 0, paintCanvas.width, paintCanvas.height));
+            redoStack = []; // 每次产生新绘制，清空前进栈
+            updateHistoryButtons();
+        }
+
+        function updateHistoryButtons() {
+            undoBtn.disabled = (undoStack.length <= 1); // 留一个初始底图做兜底
+            redoBtn.disabled = (redoStack.length === 0);
+        }
+
+        // 撤销动作
+        undoBtn.addEventListener('click', () => {
+            if (undoStack.length > 1) {
+                const current = undoStack.pop();
+                redoStack.push(current);
+                const previous = undoStack[undoStack.length - 1];
+                paintCtx.putImageData(previous, 0, 0);
+                updateHistoryButtons();
+            }
+        });
+
+        // 前进动作
+        redoBtn.addEventListener('click', () => {
+            if (redoStack.length > 0) {
+                const next = redoStack.pop();
+                undoStack.push(next);
+                paintCtx.putImageData(next, 0, 0);
+                updateHistoryButtons();
+            }
+        });
+
         paintBtn.addEventListener('click', (e) => {
             e.stopPropagation(); if (!currentLightboxImgUrl) return;
-            const baseImg = new Image(); baseImg.src = currentLightboxImgUrl;
-            baseImg.onload = () => {
-                paintCanvas.width = baseImg.naturalWidth || baseImg.width;
-                paintCanvas.height = baseImg.naturalHeight || baseImg.height;
+            baseImageObj = new Image();
+            baseImageObj.src = currentLightboxImgUrl;
+            baseImageObj.onload = () => {
+                paintCanvas.width = baseImageObj.naturalWidth || baseImageObj.width;
+                paintCanvas.height = baseImageObj.naturalHeight || baseImageObj.height;
                 paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
-                paintCtx.drawImage(baseImg, 0, 0);
+                paintCtx.drawImage(baseImageObj, 0, 0);
 
-                // 根据屏幕尺寸自动匹配出最佳的涂鸦初始自适应相机视图
-                const containerW = paintViewport.clientWidth - 40;
-                const containerH = paintViewport.clientHeight - 40;
-                camScale = Math.min(1, containerW / paintCanvas.width, containerH / paintCanvas.height);
-                camPosX = 0; camPosY = 0;
-                applyCameraTransform();
+                // 历史数据清空初始化
+                undoStack = [];
+                redoStack = [];
+                undoStack.push(paintCtx.getImageData(0, 0, paintCanvas.width, paintCanvas.height));
+                updateHistoryButtons();
+
+                // 💡 默认自适应视口大小
+                fitCanvasToViewport();
 
                 document.getElementById('lightbox-wrapper').style.visibility = 'hidden';
                 document.getElementById('lightbox-controls').style.visibility = 'hidden';
@@ -600,17 +654,24 @@
             };
         });
 
-        function applyCameraTransform() { paintCanvas.style.transform = `translate(${camPosX}px, ${camPosY}px) scale(${camScale})`; }
-        document.getElementById('paint-reset-cam-btn').addEventListener('click', () => { camScale = 0.6; camPosX = 0; camPosY = 0; applyCameraTransform(); });
+        function fitCanvasToViewport() {
+            const containerW = paintViewport.clientWidth - 30;
+            const containerH = paintViewport.clientHeight - 30;
+            camScale = Math.min(containerW / paintCanvas.width, containerH / paintCanvas.height, 1);
+            camPosX = 0; camPosY = 0;
+            applyCameraTransform();
+        }
 
-        // 💡 监听涂鸦面板的鼠标滚轮 - 缩放画布
+        function applyCameraTransform() { paintCanvas.style.transform = `translate(${camPosX}px, ${camPosY}px) scale(${camScale})`; }
+        document.getElementById('paint-reset-cam-btn').addEventListener('click', fitCanvasToViewport);
+
+        // 滚轮无缝缩放
         paintViewport.addEventListener('wheel', (e) => {
             e.preventDefault();
-            if (e.deltaY < 0) camScale += 0.08; else camScale = Math.max(0.1, camScale - 0.08);
+            if (e.deltaY < 0) camScale += 0.08; else camScale = Math.max(0.08, camScale - 0.08);
             applyCameraTransform();
         }, { passive: false });
 
-        // 💡 精准计算相机逆向映射坐标（将屏幕像素精确转换成 Canvas 自然分辨率坐标）
         function getCanvasMappedPos(e, isTouch) {
             const rect = paintCanvas.getBoundingClientRect();
             const clientX = isTouch ? e.touches[0].clientX : e.clientX;
@@ -623,24 +684,33 @@
 
         function startPaintOrPan(e, isTouch) {
             const isRightClick = !isTouch && e.button === 2;
-            const currentTool = toolSelect.value;
 
-            // 触发平移画布逻辑 (当选择平移工具，或者在电脑端直接按住右键)
-            if (currentTool === 'pan' || isRightClick) {
+            // 💡 手机端双指碰触：关闭绘图，激活高精度无缝复合拖动+缩放
+            if (isTouch && e.touches.length === 2) {
+                isDrawing = false;
                 isCamPanning = true;
-                const clientX = isTouch ? e.touches[0].clientX : e.clientX;
-                const clientY = isTouch ? e.touches[0].clientY : e.clientY;
-                camStartX = clientX - camPosX;
-                camStartY = clientY - camPosY;
+                pViewportTouchDist = getTouchDistance(e.touches);
+                pViewportTouchScale = camScale;
+                
+                // 记录双指物理中点坐标
+                pViewportTouchMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                pViewportTouchMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                camStartX = pViewportTouchMidX - camPosX;
+                camStartY = pViewportTouchMidY - camPosY;
                 return;
             }
 
-            // 多指缩放处理
-            if (isTouch && e.touches.length === 2) {
-                isDrawing = false; pViewportTouchDist = getTouchDistance(e.touches); pViewportTouchScale = camScale; return;
+            // PC端右键拖拽
+            if (isRightClick) {
+                isCamPanning = true;
+                camStartX = e.clientX - camPosX;
+                camStartY = e.clientY - camPosY;
+                return;
             }
 
-            // 触发正常涂鸦功能
+            if (isTouch && e.touches.length > 2) return;
+
+            // 单指正常绘图
             isDrawing = true;
             const pos = getCanvasMappedPos(e, isTouch);
             paintStartX = pos.x; paintStartY = pos.y;
@@ -651,39 +721,50 @@
             paintCtx.lineCap = "round"; paintCtx.lineJoin = "round";
             paintCtx.font = `${parseInt(sizeInput.value) * 3}px -apple-system, sans-serif`;
 
-            if (currentTool === 'brush') {
+            if (toolSelect.value === 'brush') {
                 paintCtx.beginPath(); paintCtx.moveTo(pos.x, pos.y);
             } else {
                 canvasHistoryBackup = paintCtx.getImageData(0, 0, paintCanvas.width, paintCanvas.height);
             }
 
-            if (currentTool === 'text') {
+            if (toolSelect.value === 'text') {
                 isDrawing = false;
                 setTimeout(() => {
                     const text = prompt("请输入您要插入的文字：");
-                    if (text && text.trim() !== "") paintCtx.fillText(text.trim(), paintStartX, paintStartY);
+                    if (text && text.trim() !== "") {
+                        paintCtx.fillText(text.trim(), paintStartX, paintStartY);
+                        pushToHistory();
+                    }
                 }, 50);
             }
         }
 
         function movePaintOrPan(e, isTouch) {
-            // 平移执行
-            if (isCamPanning) {
-                if(isTouch) e.preventDefault();
-                const clientX = isTouch ? e.touches[0].clientX : e.clientX;
-                const clientY = isTouch ? e.touches[0].clientY : e.clientY;
-                camPosX = clientX - camStartX; camPosY = clientY - camStartY;
-                applyCameraTransform(); return;
-            }
-
-            // 双指手势缩放执行
-            if (isTouch && e.touches.length === 2) {
-                e.preventDefault(); const currentDist = getTouchDistance(e.touches);
-                if (pViewportTouchDist > 0) { camScale = Math.max(0.1, pViewportTouchScale * (currentDist / pViewportTouchDist)); applyCameraTransform(); }
+            // 💡 移动端双指联动缩放与上下左右拖拽物理映射
+            if (isTouch && e.touches.length === 2 && isCamPanning) {
+                e.preventDefault();
+                const currentDist = getTouchDistance(e.touches);
+                const curMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                const curMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                
+                // 处理位移拖拽
+                camPosX = curMidX - camStartX;
+                camPosY = curMidY - camStartY;
+                
+                // 处理同时进行的缩放
+                if (pViewportTouchDist > 0) {
+                    camScale = Math.max(0.08, Math.min(12, pViewportTouchScale * (currentDist / pViewportTouchDist)));
+                }
+                applyCameraTransform();
                 return;
             }
 
-            // 绘图执行
+            // PC端的单纯右键移动画布
+            if (!isTouch && isCamPanning) {
+                camPosX = e.clientX - camStartX; camPosY = e.clientY - camStartY;
+                applyCameraTransform(); return;
+            }
+
             if (!isDrawing) return;
             if(isTouch) e.preventDefault();
             const pos = getCanvasMappedPos(e, isTouch);
@@ -701,11 +782,14 @@
             }
         }
 
-        function stopPaintOrPan() { isDrawing = false; isCamPanning = false; canvasHistoryBackup = null; }
+        function stopPaintOrPan() { 
+            if (isDrawing && toolSelect.value !== 'text') {
+                pushToHistory(); // 绘制完毕，进入历史快照
+            }
+            isDrawing = false; isCamPanning = false; canvasHistoryBackup = null; 
+        }
 
-        // 屏蔽浏览器右键菜单，方便用右键进行极速平移
         paintViewport.addEventListener('contextmenu', e => e.preventDefault());
-
         paintViewport.addEventListener('mousedown', (e) => startPaintOrPan(e, false));
         paintViewport.addEventListener('mousemove', (e) => movePaintOrPan(e, false));
         window.addEventListener('mouseup', stopPaintOrPan);
@@ -714,16 +798,22 @@
         paintViewport.addEventListener('touchmove', (e) => movePaintOrPan(e, true), { passive: false });
         paintViewport.addEventListener('touchend', stopPaintOrPan);
 
-        document.getElementById('paint-clear-btn').addEventListener('click', () => {
-            const baseImg = new Image(); baseImg.src = currentLightboxImgUrl;
-            baseImg.onload = () => { paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height); paintCtx.drawImage(baseImg, 0, 0); };
-        });
-
+        // 退出涂鸦
         document.getElementById('paint-exit-btn').addEventListener('click', () => { 
             paintContainer.style.display = "none"; 
             document.getElementById('lightbox-wrapper').style.visibility = 'visible'; document.getElementById('lightbox-controls').style.visibility = 'visible';
         });
 
+        // 💡 专属：保存修改到本地相册
+        document.getElementById('paint-save-local-btn').addEventListener('click', () => {
+            paintCanvas.toBlob((blob) => {
+                if (!blob) return alert("生成图片失败");
+                const url = URL.createObjectURL(blob);
+                downloadFile(url, "Markup_Local_" + Date.now() + ".png");
+            }, 'image/png');
+        });
+
+        // 发送修改图
         document.getElementById('paint-send-btn').addEventListener('click', () => {
             if (!dataChannel || dataChannel.readyState !== 'open') return alert("发送失败，通道断开！");
             paintCanvas.toBlob((blob) => {
@@ -741,6 +831,8 @@
         const box = document.getElementById('msg-box'); box.innerHTML += `<div class="msg-row ${role}"><div class="bubble">${escapeHTML(text)}</div></div>`;
         box.scrollTop = box.scrollHeight;
     }
+    
+    // 💡 支持跨端（PC与移动浏览器）保存相册的触发器
     function downloadFile(url, filename) { 
         const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
     }
