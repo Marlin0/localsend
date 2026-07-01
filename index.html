@@ -73,7 +73,9 @@
         .btn-action:hover { background: #ff9c3a; }
         .btn-screenshot { background: #722ed1; color: white; }
         .btn-screenshot:hover { background: #9254de; }
-        .btn-mobile-media { background: #2f54eb; color: white; display: none; } /* 移动端专属媒体选择按钮 */
+        
+        /* 💡 优化移动端媒体选择按钮：减少左右内边距，精简空间 */
+        .btn-mobile-media { background: #2f54eb; color: white; display: none; padding: 10px 8px !important; }
         .btn-mobile-media:hover { background: #597ef7; }
 
         #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; overflow: hidden; user-select: none; }
@@ -81,12 +83,11 @@
         #lightbox-img { max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transform-origin: center center; cursor: grab; transition: transform 0.05s ease-out; will-change: transform; touch-action: none; }
         #lightbox-img:active { cursor: grabbing; }
         
-        /* 按钮横排通用样式 */
-        .lightbox-controls { display: flex; flex-direction: row; gap: 6px; width: 100%; justify-content: flex-start; align-items: center; background: rgba(0,0,0,0.8); z-index: 10001; padding: 10px; flex-shrink: 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
-        .lightbox-controls::-webkit-scrollbar { height: 4px; }
-        .lightbox-controls::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 2px; }
+        /* 💡 优化灯箱和画布底部控制栏：允许自动换行 (wrap)，去除不必要的拖拽滚动 */
+        .lightbox-controls { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; width: 100%; justify-content: center; align-items: center; background: rgba(0,0,0,0.8); z-index: 10001; padding: 10px; flex-shrink: 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); }
         
-        .lightbox-btn { background: #1677ff; color: white; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        /* 💡 优化控制栏内的按钮：调整字号和内边距，确保手机端一至两行能完美容纳 */
+        .lightbox-btn { background: #1677ff; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; flex: 1; min-width: 75px; max-width: 130px; }
         .lightbox-btn.close-btn { background: #555; }
         .lightbox-btn.paint-btn { background: #fa8c16; }
         .lightbox-btn:hover { opacity: 0.9; }
@@ -156,13 +157,13 @@
             </div>
 
             <div class="input-area">
-                <input type="text" id="msg-input" placeholder="输入消息或在此粘贴(Ctrl+V)图片..." onkeypress="handleKeyPress(event)" onpaste="handlePaste(event)">
+                <input type="text" id="msg-input" placeholder="输入消息或粘贴(Ctrl+V)图片..." onkeypress="handleKeyPress(event)" onpaste="handlePaste(event)">
                 <input type="file" id="file-input" style="display: none;" onchange="sendFile()">
                 
                 <button class="btn-action" id="btn-desktop-file" title="发送文件/图片" onclick="document.getElementById('file-input').click()">📁</button>
                 <button class="btn-action btn-screenshot" id="btn-desktop-screenshot" title="屏幕截图并置入输入框" onclick="takeScreenshot()">✂️ 截图</button>
                 
-                <button class="btn-action btn-mobile-media" id="btn-mobile-chooser" title="拍照或选择照片" onclick="document.getElementById('file-input').click()">🖼️ 选图/拍照</button>
+                <button class="btn-action btn-mobile-media" id="btn-mobile-chooser" title="拍照或选择照片" onclick="document.getElementById('file-input').click()">🖼️ 选图</button>
                 
                 <button onclick="sendMessage()">发送</button>
             </div>
@@ -175,9 +176,9 @@
         <img id="lightbox-img" src="" alt="放大查看" draggable="false">
     </div>
     <div class="lightbox-controls" id="lightbox-controls">
-        <button class="lightbox-btn" id="lightbox-true-size-btn" style="background:#52c41a;">🔍 100%原图细节</button>
-        <button class="lightbox-btn" id="lightbox-reset-btn">🔄 重置自适应</button>
-        <button class="lightbox-btn" id="lightbox-download-btn">📥 保存原图到相册</button>
+        <button class="lightbox-btn" id="lightbox-true-size-btn" style="background:#52c41a;">🔍 100%原图</button>
+        <button class="lightbox-btn" id="lightbox-reset-btn">🔄 自适应</button>
+        <button class="lightbox-btn" id="lightbox-download-btn">📥 保存原图</button>
         <button class="lightbox-btn paint-btn" id="lightbox-paint-btn">🎨 涂鸦修改</button>
         <button class="lightbox-btn close-btn" id="lightbox-close-btn">关闭</button>
     </div>
@@ -214,9 +215,9 @@
     </div>
     
     <div class="lightbox-controls">
-        <button class="lightbox-btn close-btn" id="paint-reset-cam-btn">🎯 视图自适应</button>
-        <button class="lightbox-btn" style="background:#2f54eb;" id="paint-save-local-btn">💾 保存修改到相册</button>
-        <button class="lightbox-btn paint-btn" id="paint-send-btn">🚀 一键发送修改图</button>
+        <button class="lightbox-btn close-btn" id="paint-reset-cam-btn">🎯 视图重置</button>
+        <button class="lightbox-btn" style="background:#2f54eb;" id="paint-save-local-btn">💾 保存本地</button>
+        <button class="lightbox-btn paint-btn" id="paint-send-btn">🚀 一键发送</button>
         <button class="lightbox-btn close-btn" id="paint-exit-btn">退出</button>
     </div>
 </div>
@@ -231,14 +232,14 @@
     let transferStats = { totalBytes: 0, receivedBytes: 0, startTime: 0, lastUpdatedTime: 0, lastId: null };
 
     const CHUNK_SIZE = 32768; 
-    let imgScale = 1; let imgPosX = 0; let imgPosY = 0; let isDragging = false; let startX = 0; let startY = 0;
+    let imgScale = 1; let imgPosX = 0; let imgPosY = 0; let isDragging = false; startX = 0; startY = 0;
     let iceConnectionTimer = null; 
 
     let startTouchDist = 0; let startTouchScale = 1;
 
     // 涂鸦画布状态机
     let currentLightboxImgUrl = ""; let isDrawing = false; let paintStartX = 0; let paintStartY = 0;
-    let canvasHistoryBackup = null; let baseImageObj = null;
+    let canvasHistoryBackup = null; let baseImageObj = None;
 
     // 历史控制双栈
     let undoStack = []; let redoStack = [];
@@ -395,10 +396,10 @@
         peerConnection.onconnectionstatechange = () => {
             if (peerConnection.connectionState === 'connected') {
                 clearTimeout(iceConnectionTimer); statusEl.innerText = "🟢 P2P 打洞成功！"; statusEl.style.color = "#52c41a";
-                SoundEngine.play('connect'); // 🔊 触发连接成功音效
+                SoundEngine.play('connect'); 
             } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
                 statusEl.innerText = "🔴 P2P 连接已断开"; statusEl.style.color = "#ff4d4f";
-                SoundEngine.play('disconnect'); // 🔊 触发断链音效
+                SoundEngine.play('disconnect'); 
             }
         };
 
@@ -430,13 +431,13 @@
                     const data = JSON.parse(event.data);
                     if (data.type === "text") {
                         appendMessage("peer", data.content);
-                        SoundEngine.play('msg'); // 🔊 收到消息提示音
+                        SoundEngine.play('msg'); 
                     } else if (data.type === "file_meta") {
                         pendingFileMeta = data; receivedChunks = []; isTransferCancelled = false;
                         transferStats.totalBytes = data.size; transferStats.receivedBytes = 0;
                         transferStats.startTime = Date.now(); transferStats.lastUpdatedTime = Date.now(); transferStats.lastId = data.id;
                         appendPlaceholder("peer", data.id, data.name, data.fileType.startsWith("image/"));
-                        SoundEngine.play('msg'); // 🔊 收到文件进入提示音
+                        SoundEngine.play('msg'); 
                     } else if (data.type === "file_end") {
                         if (pendingFileMeta && !isTransferCancelled) {
                             const blob = new Blob(receivedChunks, { type: pendingFileMeta.fileType });
@@ -444,7 +445,7 @@
                             currentBlobToUrlMap.set(url, pendingFileMeta.name);
                             finalizePlaceholder(pendingFileMeta.id, url, pendingFileMeta.name, pendingFileMeta.fileType.startsWith("image/"));
                             pendingFileMeta = null; receivedChunks = []; peerIsOnline = true; updateStatusText();
-                            SoundEngine.play('done'); // 🔊 文件完全拉取接收完成音效
+                            SoundEngine.play('done'); 
                         }
                     } else if (data.type === "transfer_cancel") handleRemoteCancel(data.id);
                     else if (data.type === "ping") { if (allowShareStatus) dataChannel.send(JSON.stringify({ type: "pong" })); }
@@ -504,7 +505,7 @@
         const input = document.getElementById('msg-input'); const text = input.value.trim();
         if (!text || !dataChannel || dataChannel.readyState !== 'open') return;
         dataChannel.send(JSON.stringify({ type: "text", content: text })); appendMessage("me", text); input.value = "";
-        SoundEngine.play('done'); // 🔊 文本发送完成
+        SoundEngine.play('done'); 
     }
     function sendFile() {
         const fileInput = document.getElementById('file-input'); const file = fileInput.files[0];
@@ -526,7 +527,7 @@
                 dataChannel.send(JSON.stringify({ type: "file_end" }));
                 const fileUrl = URL.createObjectURL(file); currentBlobToUrlMap.set(fileUrl, file.name);
                 finalizePlaceholder(fileId, fileUrl, file.name, isImg); updateStatusText(); 
-                SoundEngine.play('done'); // 🔊 本地发送全流程顺利送达
+                SoundEngine.play('done'); 
                 return;
             }
             if (dataChannel.bufferedAmount > dataChannel.bufferedAmountLowThreshold) { window.onDataChannelBufferLow = readNextChunk; return; }
@@ -601,7 +602,7 @@
         document.getElementById('paste-preview-area').style.display = 'flex';
         document.getElementById('msg-input').placeholder = "图片已锁定，按回车直接发送..."; document.getElementById('msg-input').focus();
     }
-    function clearImagePreview() { clipboardFile = null; document.getElementById('paste-preview-area').style.display = 'none'; document.getElementById('msg-input').placeholder = "输入消息或在此粘贴(Ctrl+V)图片..."; }
+    function clearImagePreview() { clipboardFile = null; document.getElementById('paste-preview-area').style.display = 'none'; document.getElementById('msg-input').placeholder = "输入消息或粘贴(Ctrl+V)图片..."; }
     function sendClipboardImage() { if (!clipboardFile) return; executeFileSending(clipboardFile); clearImagePreview(); }
 
     // --- 灯箱控制系统 ---
