@@ -253,7 +253,6 @@ function initPaintEvents() {
     });
 }
 
-// 初始化附加执行
 initLightboxEvents();
 initMobileTouchEvents();
 initPaintEvents();

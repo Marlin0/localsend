@@ -6,7 +6,10 @@ let clipboardFile = null; let allowShareStatus = true; let checkOnlineInterval =
 let isTransferCancelled = false;
 let transferStats = { totalBytes: 0, receivedBytes: 0, startTime: 0, lastUpdatedTime: 0, lastId: null };
 
-const CHUNK_SIZE = 32768; 
+// 语音录制核心变量
+let mediaRecorder = null; let audioChunks = []; let isVoiceMode = false; let voiceStartTime = 0;
+
+const CHUNK_SIZE = 16384; 
 let iceConnectionTimer = null; 
 
 const rtcConfig = {
@@ -64,7 +67,80 @@ window.addEventListener('DOMContentLoaded', () => {
 
     document.body.addEventListener('click', () => SoundEngine.init(), { once: true });
     document.body.addEventListener('touchstart', () => SoundEngine.init(), { once: true });
+    
+    bindVoiceButtonEvents();
 });
+
+// 🎙️ 微信式输入模式切换
+function toggleVoiceMode() {
+    isVoiceMode = !isVoiceMode;
+    const txtInput = document.getElementById('msg-input');
+    const voiceBtn = document.getElementById('msg-voice-touch-btn');
+    const toggleBtn = document.getElementById('btn-voice-toggle');
+    const sendBtn = document.getElementById('btn-send-text');
+
+    if (isVoiceMode) {
+        txtInput.style.display = 'none';
+        sendBtn.style.display = 'none';
+        voiceBtn.style.display = 'flex';
+        toggleBtn.innerText = '⌨️';
+    } else {
+        txtInput.style.display = 'block';
+        sendBtn.style.display = 'block';
+        voiceBtn.style.display = 'none';
+        toggleBtn.innerText = '🎙️';
+    }
+}
+
+// 绑定按住说话交互事件
+function bindVoiceButtonEvents() {
+    const voiceBtn = document.getElementById('msg-voice-touch-btn');
+    const overlay = document.getElementById('voice-recording-overlay');
+
+    const startRecordingAction = async (e) => {
+        e.preventDefault();
+        SoundEngine.init();
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            audioChunks = [];
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunks.push(event.data); };
+            mediaRecorder.onstop = () => {
+                const duration = Math.round((Date.now() - voiceStartTime) / 1000);
+                stream.getTracks().forEach(track => track.stop());
+                if (duration < 1) { alert("录音时间太短"); return; }
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const voiceFile = new File([audioBlob], `Voice_${Date.now()}_duration_${duration}.webm`, { type: 'audio/webm' });
+                executeFileSending(voiceFile);
+            };
+            voiceStartTime = Date.now();
+            mediaRecorder.start();
+            voiceBtn.classList.add('recording-active');
+            voiceBtn.innerText = "松开 结束";
+            overlay.style.display = 'flex';
+        } catch (err) {
+            alert("无法获取麦克风权限或当前处于非安全域(需HTTPS/Localhost)");
+        }
+    };
+
+    const stopRecordingAction = (e) => {
+        e.preventDefault();
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+        }
+        voiceBtn.classList.remove('recording-active');
+        voiceBtn.innerText = "按住 说话";
+        overlay.style.display = 'none';
+    };
+
+    voiceBtn.addEventListener('mousedown', startRecordingAction);
+    voiceBtn.addEventListener('mouseup', stopRecordingAction);
+    voiceBtn.addEventListener('mouseleave', stopRecordingAction);
+
+    voiceBtn.addEventListener('touchstart', startRecordingAction, { passive: false });
+    voiceBtn.addEventListener('touchend', stopRecordingAction, { passive: false });
+    voiceBtn.addEventListener('touchcancel', stopRecordingAction, { passive: false });
+}
 
 function handleReceiverCodeKeyPress(e) {
     if (e.key === 'Enter') {
@@ -181,14 +257,26 @@ function setupDataChannel(channel) {
                     pendingFileMeta = data; receivedChunks = []; isTransferCancelled = false;
                     transferStats.totalBytes = data.size; transferStats.receivedBytes = 0;
                     transferStats.startTime = Date.now(); transferStats.lastUpdatedTime = Date.now(); transferStats.lastId = data.id;
-                    appendPlaceholder("peer", data.id, data.name, data.fileType.startsWith("image/"));
+                    
+                    let typeTag = "file";
+                    if (data.fileType.startsWith("image/")) typeTag = "image";
+                    else if (data.fileType.startsWith("video/")) typeTag = "video";
+                    else if (data.name.startsWith("Voice_") && data.fileType.startsWith("audio/")) typeTag = "voice";
+
+                    appendPlaceholder("peer", data.id, data.name, typeTag);
                     SoundEngine.play('msg');
                 } else if (data.type === "file_end") {
                     if (pendingFileMeta && !isTransferCancelled) {
                         const blob = new Blob(receivedChunks, { type: pendingFileMeta.fileType });
                         const url = URL.createObjectURL(blob);
                         currentBlobToUrlMap.set(url, pendingFileMeta.name);
-                        finalizePlaceholder(pendingFileMeta.id, url, pendingFileMeta.name, pendingFileMeta.fileType.startsWith("image/"));
+
+                        let typeTag = "file";
+                        if (pendingFileMeta.fileType.startsWith("image/")) typeTag = "image";
+                        else if (pendingFileMeta.fileType.startsWith("video/")) typeTag = "video";
+                        else if (pendingFileMeta.name.startsWith("Voice_") && pendingFileMeta.fileType.startsWith("audio/")) typeTag = "voice";
+
+                        finalizePlaceholder(pendingFileMeta.id, url, pendingFileMeta.name, typeTag);
                         pendingFileMeta = null; receivedChunks = []; peerIsOnline = true; updateStatusText();
                         SoundEngine.play('done');
                     }
@@ -260,8 +348,14 @@ function sendFile() {
 
 function executeFileSending(file) {
     const fileId = "msg_" + Date.now() + "_" + Math.floor(Math.random()*1000);
-    const isImg = file.type.startsWith("image/"); isTransferCancelled = false;
-    appendPlaceholder("me", fileId, file.name, isImg);
+    isTransferCancelled = false;
+    
+    let typeTag = "file";
+    if (file.type.startsWith("image/")) typeTag = "image";
+    else if (file.type.startsWith("video/")) typeTag = "video";
+    else if (file.name.startsWith("Voice_") && file.type.startsWith("audio/")) typeTag = "voice";
+
+    appendPlaceholder("me", fileId, file.name, typeTag);
     let senderStats = { totalBytes: file.size, sentBytes: 0, startTime: Date.now(), lastUpdatedTime: Date.now() };
     dataChannel.send(JSON.stringify({ type: "file_meta", id: fileId, name: file.name, size: file.size, fileType: file.type }));
 
@@ -271,7 +365,7 @@ function executeFileSending(file) {
         if (offset >= file.size) {
             dataChannel.send(JSON.stringify({ type: "file_end" }));
             const fileUrl = URL.createObjectURL(file); currentBlobToUrlMap.set(fileUrl, file.name);
-            finalizePlaceholder(fileId, fileUrl, file.name, isImg); updateStatusText(); 
+            finalizePlaceholder(fileId, fileUrl, file.name, typeTag); updateStatusText(); 
             SoundEngine.play('done');
             return;
         }
@@ -294,12 +388,24 @@ function executeFileSending(file) {
     window.onDataChannelBufferLow = readNextChunk; readNextChunk();
 }
 
-function appendPlaceholder(role, id, filename, isImg) {
+function appendPlaceholder(role, id, filename, typeTag) {
     const box = document.getElementById('msg-box');
-    let contentHtml = isImg ? `<div class="img-placeholder" id="placeholder-body-${id}"><div class="spinner"></div><span>加载中...</span></div>` : `<div class="chat-file" id="placeholder-body-${id}">📁 ${filename}</div>`;
+    let contentHtml = "";
+    
+    if (typeTag === "image") {
+        contentHtml = `<div class="img-placeholder" id="placeholder-body-${id}"><div class="spinner"></div><span>加载中...</span></div>`;
+    } else if (typeTag === "video") {
+        contentHtml = `<div class="img-placeholder" id="placeholder-body-${id}" style="background:#222;"><div class="spinner"></div><span style="color:#eee">视频接收中...</span></div>`;
+    } else if (typeTag === "voice") {
+        contentHtml = `<div id="placeholder-body-${id}">🎵 语音传输中...</div>`;
+    } else {
+        contentHtml = `<div class="chat-file" id="placeholder-body-${id}">📁 ${filename}</div>`;
+    }
+    
     box.innerHTML += `<div class="msg-row ${role}" id="${id}"><div class="bubble">${contentHtml}<div class="progress-panel" id="progress-panel-${id}"><div class="progress-bar-bg"><div class="progress-bar-fill" id="bar-fill-${id}"></div></div><div class="progress-meta"><span id="percent-${id}">0%</span><span id="speed-${id}">0.00 MB/s</span><span id="eta-${id}">剩余 --:--</span><a class="cancel-link" id="cancel-btn-${id}" onclick="cancelTransfer('${id}')">🛑 取消</a></div></div></div></div>`;
     setTimeout(() => { box.scrollTop = box.scrollHeight; }, 30);
 }
+
 function updateProgressBarElements(id, received, total, speedBytes, etaSeconds) {
     const bar = document.getElementById(`bar-fill-${id}`); if(!bar || isTransferCancelled) return;
     let pct = Math.min(100, Math.floor((received / total) * 100)); bar.style.width = pct + "%";
@@ -312,12 +418,44 @@ function updateProgressBarElements(id, received, total, speedBytes, etaSeconds) 
         document.getElementById(`eta-${id}`).innerText = `剩余 ${Math.floor(etaSeconds / 60)}:${etaSeconds % 60 < 10 ? '0' : ''}${etaSeconds % 60}`;
     }
 }
-function finalizePlaceholder(id, url, filename, isImg) {
+
+function finalizePlaceholder(id, url, filename, typeTag) {
     if(isTransferCancelled) return;
     if(document.getElementById(`progress-panel-${id}`)) document.getElementById(`progress-panel-${id}`).style.display = 'none';
     const bodyContainer = document.getElementById('placeholder-body-' + id); if(!bodyContainer) return;
-    bodyContainer.outerHTML = isImg ? `<img src="${url}" class="chat-img" alt="${filename}" onclick="openLightbox('${url}')">` : `<a href="${url}" download="${filename}" class="chat-file">📁 ${filename}</a>`;
+    
+    if (typeTag === "image") {
+        bodyContainer.outerHTML = `<img src="${url}" class="chat-img" alt="${filename}" onclick="openLightbox('${url}')">`;
+    } else if (typeTag === "video") {
+        // 🎬 核心优化：直接嵌入可播放的video标签，并加上单独的下载按钮
+        bodyContainer.outerHTML = `
+            <div class="video-container">
+                <video src="${url}" controls class="chat-video" playsinline></video>
+                <button class="video-download-btn" onclick="downloadFile('${url}', '${filename}')">📥 下载视频</button>
+            </div>`;
+    } else if (typeTag === "voice") {
+        // 🔊 核心优化：解析出录音时长，生成微信样式音轨
+        let duration = 1;
+        const matches = filename.match(/_duration_(\d+)/);
+        if (matches && matches[1]) duration = parseInt(matches[1]);
+        
+        let visualWidth = 60 + (duration * 8); 
+        bodyContainer.outerHTML = `
+            <div class="chat-voice-bar" style="width: ${visualWidth}px;" onclick="playVoiceMessage('${url}')">
+                <span class="voice-wave-icon">🔊</span>
+                <span>${duration}"</span>
+                <audio id="audio-player-${id}" src="${url}" style="display:none;"></audio>
+            </div>`;
+    } else {
+        bodyContainer.outerHTML = `<a href="${url}" download="${filename}" class="chat-file">📁 ${filename}</a>`;
+    }
     setTimeout(() => { document.getElementById('msg-box').scrollTop = document.getElementById('msg-box').scrollHeight; }, 50);
+}
+
+// 播放微信式语音条
+function playVoiceMessage(url) {
+    let audio = new Audio(url);
+    audio.play().catch(e=>{});
 }
 
 function handlePaste(e) {

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>LocalSend 跨网网页 P2P 直连</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -51,15 +51,20 @@
             </div>
 
             <div class="input-area">
+                <button class="btn-action" id="btn-voice-toggle" title="切换语音/文字" onclick="toggleVoiceMode()">🎙️</button>
+                
                 <input type="text" id="msg-input" placeholder="输入消息或在此粘贴(Ctrl+V)图片..." onkeypress="handleKeyPress(event)" onpaste="handlePaste(event)">
+                
+                <button id="msg-voice-touch-btn" style="display: none; user-select: none; background: #f7f7f7; color: #333; border: 1px solid #ccc;">按住 说话</button>
+                
                 <input type="file" id="file-input" style="display: none;" onchange="sendFile()">
                 
                 <button class="btn-action" id="btn-desktop-file" title="发送文件/图片" onclick="document.getElementById('file-input').click()">📁</button>
-                <button class="btn-action btn-screenshot" id="btn-desktop-screenshot" title="屏幕截图并置入输入框" onclick="takeScreenshot()">✂️ 截图</button>
+                <button class="btn-action btn-screenshot" id="btn-desktop-screenshot" title="屏幕截图并置入输入框" onclick="takeScreenshot()">✂️</button>
                 
                 <button class="btn-action btn-mobile-media" id="btn-mobile-chooser" title="拍照或选择照片" onclick="document.getElementById('file-input').click()">🖼️ 选图</button>
                 
-                <button onclick="sendMessage()">发送</button>
+                <button id="btn-send-text" onclick="sendMessage()">发送</button>
             </div>
         </div>
     </div>
@@ -113,6 +118,13 @@
         <button class="lightbox-btn" style="background:#2f54eb;" id="paint-save-local-btn">保存修改</button>
         <button class="lightbox-btn paint-btn" id="paint-send-btn">一键发送</button>
         <button class="lightbox-btn close-btn" id="paint-exit-btn">❌</button>
+    </div>
+</div>
+
+<div id="voice-recording-overlay">
+    <div class="voice-overlay-card">
+        <div class="voice-wave-anim">🎙️</div>
+        <div id="voice-overlay-text">正在录音...</div>
     </div>
 </div>
 
