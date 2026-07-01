@@ -6,24 +6,24 @@
     <title>LocalSend 跨网网页 P2P 直连</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background: #f0f2f5; color: #333; margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background: #f0f2f5; color: #333; margin: 0; height: 100vh; height: 100dvh; display: flex; justify-content: center; align-items: center; }
         
-        .container { width: 95%; max-width: 850px; height: 96vh; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+        .container { width: 95%; max-width: 850px; height: 96vh; height: 96dvh; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
         h2 { text-align: center; color: #1677ff; margin: 0 0 10px 0; font-size: 20px; }
-        .section { margin-bottom: 15px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 8px; background: #fafafa; }
+        .section { margin-bottom: 15px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 8px; background: #fafafa; flex-shrink: 0; }
         .code-display { font-size: 32px; font-weight: bold; text-align: center; color: #52c41a; letter-spacing: 5px; margin: 10px 0; }
         
         input[type="text"] { width: 100%; padding: 10px; font-size: 16px; text-align: center; border: 1px solid #d9d9d9; border-radius: 6px; margin-bottom: 10px; }
         button { width: 100%; padding: 12px; font-size: 16px; background: #1677ff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         button:hover { background: #4096ff; }
         
-        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 13px; background: #fafafa; padding: 8px 12px; border-radius: 6px; border: 1px solid #f0f0f0; gap: 10px; }
+        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 13px; background: #fafafa; padding: 8px 12px; border-radius: 6px; border: 1px solid #f0f0f0; gap: 10px; flex-shrink: 0; }
         .status { font-weight: bold; color: #666; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .online-toggle { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 13px; color: #555; user-select: none; white-space: nowrap; flex-shrink: 0; }
         
-        #transfer-zone { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+        #transfer-zone { display: none; flex: 1; flex-direction: column; overflow: hidden; min-height: 0; }
         #msg-box { 
-            flex: 1; border: 1px solid #ddd; background: #eaeaea; 
+            flex: 1; min-height: 0; border: 1px solid #ddd; background: #eaeaea; 
             overflow-y: auto; padding: 15px; margin-bottom: 10px; 
             font-size: 14px; border-radius: 6px; display: flex; flex-direction: column; gap: 15px;
         }
@@ -57,7 +57,7 @@
         .spinner { width: 20px; height: 20px; border: 2px solid #1890ff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .input-panel { display: flex; flex-direction: column; gap: 8px; }
+        .input-panel { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
         #paste-preview-area { display: none; align-items: center; justify-content: space-between; gap: 10px; background: #f5f5f5; padding: 8px; border-radius: 6px; border: 1px dashed #ccc; width: 100%; }
         .preview-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
         #paste-preview-img { max-height: 50px; max-width: 70px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
@@ -76,13 +76,20 @@
 
         #lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; overflow: hidden; user-select: none; }
         .lightbox-wrapper { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
-        #lightbox-img { max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transform-origin: center center; cursor: grab; transition: transform 0.05s ease-out; will-change: transform; }
+        #lightbox-img { max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transform-origin: center center; cursor: grab; transition: transform 0.05s ease-out; will-change: transform; touch-action: none; }
         #lightbox-img:active { cursor: grabbing; }
-        .lightbox-controls { height: 60px; display: flex; gap: 15px; width: 100%; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 10001; }
-        .lightbox-btn { background: #1677ff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; white-space: nowrap; }
+        
+        .lightbox-controls { height: 60px; display: flex; gap: 10px; width: 100%; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 10001; padding: 0 10px; flex-wrap: nowrap; overflow-x: auto; }
+        .lightbox-btn { background: #1677ff; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap; }
         .lightbox-btn.close-btn { background: #555; }
+        .lightbox-btn.paint-btn { background: #fa8c16; }
         .lightbox-btn:hover { opacity: 0.9; }
         #screenshot-tip { display: none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 8px 16px; border-radius: 20px; z-index: 10000; font-size: 13px; pointer-events: none; text-align: center; width: 90%; max-width: 400px; }
+
+        /* 涂鸦画布容器样式 */
+        #paint-container { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10005; background: rgba(0,0,0,0.9); flex-direction: column; justify-content: center; align-items: center; }
+        #paint-canvas-wrapper { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+        #paint-canvas { box-shadow: 0 4px 20px rgba(0,0,0,0.6); background: transparent; max-width: 95%; max-height: 80vh; touch-action: none; }
     </style>
 </head>
 <body>
@@ -140,13 +147,26 @@
     </div>
 </div>
 
-<div id="lightbox" onclick="closeLightbox(event)">
+<div id="lightbox">
     <div class="lightbox-wrapper" id="lightbox-wrapper">
         <img id="lightbox-img" src="" alt="放大查看" draggable="false">
     </div>
-    <div class="lightbox-controls">
+    <div class="lightbox-controls" id="lightbox-controls">
+        <button class="lightbox-btn" id="lightbox-reset-btn">🔍 原图/重置</button>
         <button class="lightbox-btn" id="lightbox-download-btn">📥 下载原图</button>
-        <button class="lightbox-btn close-btn" onclick="closeLightbox(event)">关闭</button>
+        <button class="lightbox-btn paint-btn" id="lightbox-paint-btn">🎨 涂鸦修改</button>
+        <button class="lightbox-btn close-btn" id="lightbox-close-btn">关闭</button>
+    </div>
+</div>
+
+<div id="paint-container">
+    <div id="paint-canvas-wrapper">
+        <canvas id="paint-canvas"></canvas>
+    </div>
+    <div class="lightbox-controls">
+        <button class="lightbox-btn close-btn" id="paint-clear-btn">🧹 清除涂鸦</button>
+        <button class="lightbox-btn paint-btn" id="paint-send-btn">🚀 一键发送给对方</button>
+        <button class="lightbox-btn close-btn" id="paint-exit-btn">退出涂鸦</button>
     </div>
 </div>
 
@@ -159,9 +179,19 @@
     let isTransferCancelled = false;
     let transferStats = { totalBytes: 0, receivedBytes: 0, startTime: 0, lastUpdatedTime: 0, lastId: null };
 
-    // 🌟 核心调优：针对流式大文件将切片提高到更稳健的 32KB
     const CHUNK_SIZE = 32768; 
     let imgScale = 1; let imgPosX = 0; let imgPosY = 0; let isDragging = false; let startX = 0; let startY = 0;
+    let iceConnectionTimer = null; 
+
+    // 手机端多点触控（双指缩放）状态跟踪变量
+    let startTouchDist = 0;
+    let startTouchScale = 1;
+
+    // 涂鸦画布相关全局控制
+    let currentLightboxImgUrl = "";
+    let isPainting = false;
+    const paintCanvas = document.getElementById('paint-canvas');
+    const paintCtx = paintCanvas.getContext('2d');
 
     const rtcConfig = {
         iceServers: [
@@ -175,6 +205,8 @@
         const savedUrl = localStorage.getItem('localSendServerUrl');
         if (savedUrl) document.getElementById('server-url').value = savedUrl;
         initLightboxEvents();
+        initMobileTouchEvents();
+        initPaintEvents();
     });
 
     function chooseRole(role) {
@@ -201,12 +233,20 @@
 
         ws.onmessage = async (event) => {
             const message = JSON.parse(event.data);
+            if (message.type === "error") {
+                alert(message.message);
+                statusEl.innerText = message.message;
+                statusEl.style.color = "#ff4d4f";
+                return;
+            }
+
             if (message.type === "peer_ready" && myRole === "receiver") {
                 statusEl.innerText = "已寻获发送方，正在交换网络名片...";
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 ws.send(jsonStr("signal", { room_id: roomCode, data: offer }));
             }
+            
             if (message.type === "signal") {
                 const signalData = message.data;
                 if (signalData.type === "offer") {
@@ -233,6 +273,25 @@
 
     function initWebRTC(isSender) {
         peerConnection = new RTCPeerConnection(rtcConfig);
+        
+        iceConnectionTimer = setTimeout(() => {
+            if (peerConnection && peerConnection.connectionState !== 'connected') {
+                statusEl.innerText = "⚠️ 打洞失败，当前网络环境受限（如严格对称型NAT），请尝试切换网络或配置 TURN 中转服务器。";
+                statusEl.style.color = "#ff4d4f";
+            }
+        }, 15000);
+
+        peerConnection.onconnectionstatechange = () => {
+            if (peerConnection.connectionState === 'connected') {
+                clearTimeout(iceConnectionTimer);
+                statusEl.innerText = "🟢 P2P 打洞成功！";
+                statusEl.style.color = "#52c41a";
+            } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
+                statusEl.innerText = "🔴 P2P 连接已断开";
+                statusEl.style.color = "#ff4d4f";
+            }
+        };
+
         if (!isSender) {
             dataChannel = peerConnection.createDataChannel("p2pChannel");
             setupDataChannel(dataChannel);
@@ -248,6 +307,11 @@
     }
 
     function setupDataChannel(channel) {
+        channel.bufferedAmountLowThreshold = 262144; 
+        channel.onbufferedamountlow = () => {
+            if (window.onDataChannelBufferLow) window.onDataChannelBufferLow();
+        };
+
         channel.onopen = () => {
             peerIsOnline = true; updateStatusText();
             document.getElementById('online-toggle-container').style.display = 'flex';
@@ -284,10 +348,6 @@
                             finalizePlaceholder(pendingFileMeta.id, url, pendingFileMeta.name, pendingFileMeta.fileType.startsWith("image/"));
                             pendingFileMeta = null; receivedChunks = []; peerIsOnline = true; updateStatusText();
                         }
-                    } else if (data.type === "progress_feedback") {
-                        if(!isTransferCancelled) {
-                            updateProgressBarElements(data.id, data.receivedBytes, transferStats.totalBytes, data.speed, data.eta);
-                        }
                     } else if (data.type === "transfer_cancel") {
                         handleRemoteCancel(data.id);
                     } else if (data.type === "ping") {
@@ -298,6 +358,7 @@
                 } catch (e) { appendMessage("peer", event.data); }
             } else {
                 if (isTransferCancelled) return;
+                
                 receivedChunks.push(event.data);
                 transferStats.receivedBytes += event.data.byteLength;
 
@@ -309,16 +370,6 @@
                     let eta = speed > 0 ? Math.ceil(remainingBytes / speed) : 0;
 
                     updateProgressBarElements(transferStats.lastId, transferStats.receivedBytes, transferStats.totalBytes, speed, eta);
-
-                    try {
-                        dataChannel.send(JSON.stringify({
-                            type: "progress_feedback",
-                            id: transferStats.lastId,
-                            receivedBytes: transferStats.receivedBytes,
-                            speed: speed,
-                            eta: eta
-                        }));
-                    } catch(e){}
                     transferStats.lastUpdatedTime = now;
                 }
             }
@@ -371,6 +422,7 @@
     }
 
     function toggleStatusSharing() { allowShareStatus = document.getElementById('allow-share-status').checked; }
+    
     function startOnlineStateTracker() {
         if (checkOnlineInterval) clearInterval(checkOnlineInterval);
         checkOnlineInterval = setInterval(() => {
@@ -383,6 +435,7 @@
     }
 
     function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+    
     function sendMessage() {
         if (clipboardFile) { sendClipboardImage(); return; }
         const input = document.getElementById('msg-input'); const text = input.value.trim();
@@ -397,7 +450,6 @@
         executeFileSending(file); fileInput.value = ""; 
     }
 
-    // 🌟 彻底重构：采用高级 File.slice 硬盘流式读取算法
     function executeFileSending(file) {
         const fileId = "msg_" + Date.now() + "_" + Math.floor(Math.random()*1000);
         const isImg = file.type.startsWith("image/");
@@ -405,7 +457,7 @@
         
         appendPlaceholder("me", fileId, file.name, isImg);
         
-        transferStats.totalBytes = file.size;
+        let senderStats = { totalBytes: file.size, sentBytes: 0, startTime: Date.now(), lastUpdatedTime: Date.now() };
         statusEl.innerText = `发送元数据: ${file.name}...`;
         
         dataChannel.send(JSON.stringify({
@@ -419,38 +471,54 @@
         let offset = 0;
         const reader = new FileReader();
 
-        // 每次只读一小块，发完再读下一块，零内存占用！
         const readNextChunk = () => {
-            if (isTransferCancelled) return;
+            if (isTransferCancelled) { window.onDataChannelBufferLow = null; return; }
             if (offset >= file.size) {
-                // 全部读取并发送完毕
                 dataChannel.send(JSON.stringify({ type: "file_end" }));
                 const fileUrl = URL.createObjectURL(file);
                 currentBlobToUrlMap.set(fileUrl, file.name);
                 finalizePlaceholder(fileId, fileUrl, file.name, isImg);
                 updateStatusText();
+                window.onDataChannelBufferLow = null;
                 return;
             }
+
+            if (dataChannel.bufferedAmount > dataChannel.bufferedAmountLowThreshold) {
+                window.onDataChannelBufferLow = readNextChunk;
+                return;
+            }
+
             const slice = file.slice(offset, offset + CHUNK_SIZE);
             reader.readAsArrayBuffer(slice);
         };
 
-        reader.onload = async (e) => {
+        reader.onload = (e) => {
             if (isTransferCancelled) return;
             const buffer = e.target.result;
             
-            // 缓存防爆机制：如果RTC缓存超过1MB，异步等待其消耗完毕再继续读盘
-            while (dataChannel.bufferedAmount > 1048576) { 
-                if (isTransferCancelled) return;
-                await new Promise(r => setTimeout(r, 30)); 
+            try {
+                dataChannel.send(buffer);
+                offset += buffer.byteLength;
+                senderStats.sentBytes += buffer.byteLength;
+
+                let now = Date.now();
+                if (now - senderStats.lastUpdatedTime > 250 || senderStats.sentBytes === senderStats.totalBytes) {
+                    let elapsed = (now - senderStats.startTime) / 1000;
+                    let speed = elapsed > 0 ? (senderStats.sentBytes / elapsed) : 0;
+                    let remaining = senderStats.totalBytes - senderStats.sentBytes;
+                    let eta = speed > 0 ? Math.ceil(remaining / speed) : 0;
+
+                    updateProgressBarElements(fileId, senderStats.sentBytes, senderStats.totalBytes, speed, eta);
+                    senderStats.lastUpdatedTime = now;
+                }
+                
+                readNextChunk(); 
+            } catch(err) {
+                console.error("流推送异常断裂:", err);
             }
-            
-            dataChannel.send(buffer);
-            offset += buffer.byteLength;
-            readNextChunk(); // 轮循下一块
         };
 
-        // 启动流式读取
+        window.onDataChannelBufferLow = readNextChunk;
         readNextChunk();
     }
 
@@ -518,11 +586,11 @@
         const panel = document.getElementById(`progress-panel-${id}`);
         if(panel) panel.style.display = 'none';
 
-        const bodyContainer = document.getElementById(`placeholder-body-${id}`);
+        const bodyContainer = document.getElementById('placeholder-body-' + id);
         if(!bodyContainer) return;
 
         if (isImg) {
-            bodyContainer.outerHTML = `<img src="${url}" class="chat-img" alt="${filename}" title="点击放大/滚轮拖拽查看" onclick="openLightbox('${url}')">`;
+            bodyContainer.outerHTML = `<img src="${url}" class="chat-img" alt="${filename}" title="点击放大/手势或鼠标拖动查看" onclick="openLightbox('${url}')">`;
         } else {
             bodyContainer.outerHTML = `
                 <a href="${url}" download="${filename}" class="chat-file">
@@ -576,28 +644,229 @@
 
     function sendClipboardImage() { if (!clipboardFile) return; executeFileSending(clipboardFile); clearImagePreview(); }
 
+    // --- 初始化电脑端灯箱手势事件 ---
     function initLightboxEvents() {
-        const lightbox = document.getElementById('lightbox'); const wrapper = document.getElementById('lightbox-wrapper'); const img = document.getElementById('lightbox-img');
+        const wrapper = document.getElementById('lightbox-wrapper'); 
+        const img = document.getElementById('lightbox-img');
+        const closeBtn = document.getElementById('lightbox-close-btn');
+        const resetBtn = document.getElementById('lightbox-reset-btn');
+
+        // 鼠标滚轮缩放
         wrapper.addEventListener('wheel', (e) => {
             e.preventDefault(); const speed = 0.12;
             if (e.deltaY < 0) imgScale += speed; else imgScale = Math.max(0.15, imgScale - speed);
             applyImgTransform();
         }, { passive: false });
-        img.addEventListener('mousedown', (e) => { if (e.button !== 0) return; isDragging = true; startX = e.clientX - imgPosX; startY = e.clientY - imgPosY; e.stopPropagation(); });
-        window.addEventListener('mousemove', (e) => { if (!isDragging) return; imgPosX = e.clientX - startX; imgPosY = e.clientY - startY; applyImgTransform(); });
+
+        // 鼠标拖拽逻辑
+        img.addEventListener('mousedown', (e) => { 
+            if (e.button !== 0) return; 
+            isDragging = true; 
+            startX = e.clientX - imgPosX; 
+            startY = e.clientY - imgPosY; 
+            e.stopPropagation(); 
+        });
+        window.addEventListener('mousemove', (e) => { 
+            if (!isDragging) return; 
+            imgPosX = e.clientX - startX; 
+            imgPosY = e.clientY - startY; 
+            applyImgTransform(); 
+        });
         window.addEventListener('mouseup', () => { isDragging = false; });
         img.addEventListener('dblclick', (e) => { e.stopPropagation(); resetLightboxState(); });
+
+        // 原图恢复与重置按钮绑定
+        resetBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resetLightboxState();
+        });
+
+        // 精准关闭绑定
+        wrapper.addEventListener('click', (e) => {
+            if (e.target === wrapper) { document.getElementById('lightbox').style.display = 'none'; }
+        });
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('lightbox').style.display = 'none';
+        });
+    }
+
+    // --- 适配手机端移动放大/双指缩放/单指平移功能 ---
+    function initMobileTouchEvents() {
+        const img = document.getElementById('lightbox-img');
+        
+        img.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                // 单指准备拖拽平移
+                isDragging = true;
+                startX = e.touches[0].clientX - imgPosX;
+                startY = e.touches[0].clientY - imgPosY;
+            } else if (e.touches.length === 2) {
+                // 双指准备进行双指手势缩放
+                isDragging = false;
+                startTouchDist = getTouchDistance(e.touches);
+                startTouchScale = imgScale;
+            }
+        });
+
+        img.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // 阻止手机浏览器默认的滚动与弹性晃动
+            if (e.touches.length === 1 && isDragging) {
+                // 单指执行平移
+                imgPosX = e.touches[0].clientX - startX;
+                imgPosY = e.touches[0].clientY - startY;
+                applyImgTransform();
+            } else if (e.touches.length === 2) {
+                // 双指执行缩放
+                const currentDist = getTouchDistance(e.touches);
+                if (startTouchDist > 0) {
+                    const factor = currentDist / startTouchDist;
+                    imgScale = Math.max(0.15, Math.min(8, startTouchScale * factor));
+                    applyImgTransform();
+                }
+            }
+        }, { passive: false });
+
+        img.addEventListener('touchend', (e) => {
+            isDragging = false;
+            if (e.touches.length < 2) startTouchDist = 0;
+        });
+    }
+
+    function getTouchDistance(touches) {
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    // --- 核心涂鸦与一键发送控制模块 ---
+    function initPaintEvents() {
+        const paintBtn = document.getElementById('lightbox-paint-btn');
+        const paintContainer = document.getElementById('paint-container');
+        const exitPaintBtn = document.getElementById('paint-exit-btn');
+        const clearPaintBtn = document.getElementById('paint-clear-btn');
+        const sendPaintBtn = document.getElementById('paint-send-btn');
+
+        // 打开涂鸦修改层
+        paintBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!currentLightboxImgUrl) return;
+
+            const baseImg = new Image();
+            baseImg.src = currentLightboxImgUrl;
+            baseImg.onload = () => {
+                // 动态拉伸配置 Canvas 尺寸等于原图分辨率，保证一键发送出去的是无损合成图
+                paintCanvas.width = baseImg.naturalWidth || baseImg.width;
+                paintCanvas.height = baseImg.naturalHeight || baseImg.height;
+                
+                // 将原图无损渲染作为背景底图
+                paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
+                paintCtx.drawImage(baseImg, 0, 0);
+                
+                // 配置红色的极简涂鸦画笔属性
+                paintCtx.strokeStyle = "#ff4d4f";
+                paintCtx.lineWidth = Math.max(4, Math.floor(paintCanvas.width / 250)); // 自动按大图分辨率比例适配粗细
+                paintCtx.lineCap = "round";
+                paintCtx.lineJoin = "round";
+
+                paintContainer.style.display = "flex";
+            };
+        });
+
+        // 处理画笔的绘图坐标转换工具
+        function getCanvasMousePos(e, isTouch) {
+            const rect = paintCanvas.getBoundingClientRect();
+            const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+            const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+            // 完美映射视口像素到 Canvas 的自然真实物理像素分辨率
+            return {
+                x: (clientX - rect.left) * (paintCanvas.width / rect.width),
+                y: (clientY - rect.top) * (paintCanvas.height / rect.height)
+            };
+        }
+
+        function startDrawing(e, isTouch) {
+            isPainting = true;
+            const pos = getCanvasMousePos(e, isTouch);
+            paintCtx.beginPath();
+            paintCtx.moveTo(pos.x, pos.y);
+        }
+
+        function drawMove(e, isTouch) {
+            if (!isPainting) return;
+            if(isTouch) e.preventDefault();
+            const pos = getCanvasMousePos(e, isTouch);
+            paintCtx.lineTo(pos.x, pos.y);
+            paintCtx.stroke();
+        }
+
+        function stopDrawing() { isPainting = false; }
+
+        // 绑定鼠标绘图事件
+        paintCanvas.addEventListener('mousedown', (e) => startDrawing(e, false));
+        paintCanvas.addEventListener('mousemove', (e) => drawMove(e, false));
+        window.addEventListener('mouseup', stopDrawing);
+
+        // 绑定手机触摸绘图事件
+        paintCanvas.addEventListener('touchstart', (e) => startDrawing(e, true));
+        paintCanvas.addEventListener('touchmove', (e) => drawMove(e, true), { passive: false });
+        paintCanvas.addEventListener('touchend', stopDrawing);
+
+        // 彻底清除并重置背景
+        clearPaintBtn.addEventListener('click', () => {
+            const baseImg = new Image();
+            baseImg.src = currentLightboxImgUrl;
+            baseImg.onload = () => {
+                paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
+                paintCtx.drawImage(baseImg, 0, 0);
+            };
+        });
+
+        // 退出涂鸦图层
+        exitPaintBtn.addEventListener('click', () => { paintContainer.style.display = "none"; });
+
+        // 🚀 核心逻辑：一键发送涂鸦图片给对方
+        sendPaintBtn.addEventListener('click', () => {
+            if (!dataChannel || dataChannel.readyState !== 'open') {
+                alert("发送失败，通道当前未连接！");
+                return;
+            }
+
+            // 将 Canvas 画布内容压制输出为无损二进制大对象 Blob
+            paintCanvas.toBlob((blob) => {
+                if (!blob) return alert("生成图片失败！");
+                
+                // 拼装文件元属性，通过流直接发送
+                const drawFile = new File([blob], "Edit_" + Date.now() + ".png", { type: "image/png" });
+                executeFileSending(drawFile);
+
+                // 发送成功后关闭所有的灯箱和涂鸦修改层
+                paintContainer.style.display = "none";
+                document.getElementById('lightbox').style.display = 'none';
+            }, 'image/png');
+        });
     }
 
     function applyImgTransform() { document.getElementById('lightbox-img').style.transform = `translate(${imgPosX}px, ${imgPosY}px) scale(${imgScale})`; }
     function resetLightboxState() { imgScale = 1; imgPosX = 0; imgPosY = 0; isDragging = false; applyImgTransform(); }
+    
     function openLightbox(url) {
         const lightbox = document.getElementById('lightbox'); const img = document.getElementById('lightbox-img');
-        resetLightboxState(); img.src = url;
-        document.getElementById('lightbox-download-btn').onclick = (e) => { e.stopPropagation(); downloadFile(url, currentBlobToUrlMap.get(url) || "image.png"); };
+        resetLightboxState(); 
+        img.src = url;
+        currentLightboxImgUrl = url; // 暂存当前查看的图片地址供涂鸦使用
+
+        // 精准覆盖并保证每次打开无限次可下载，修复二次点击无响应的隐蔽 Bug
+        const downloadBtn = document.getElementById('lightbox-download-btn');
+        downloadBtn.onclick = (e) => { 
+            e.stopPropagation(); 
+            const filename = currentBlobToUrlMap.get(url) || "image.png";
+            downloadFile(url, filename); 
+        };
+
         lightbox.style.display = 'flex';
     }
-    function closeLightbox(e) { if (e.target.closest('.lightbox-controls') || e.target.id === 'lightbox-img') return; document.getElementById('lightbox').style.display = 'none'; }
+
     function jsonStr(action, obj) { return JSON.stringify({ action: action, ...obj }); }
     
     function appendMessage(role, text) {
@@ -606,7 +875,16 @@
         box.scrollTop = box.scrollHeight;
     }
 
-    function downloadFile(url, filename) { const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); }
+    // 支持无限次调用、完毕后瞬间销毁碎片的稳健下载方案
+    function downloadFile(url, filename) { 
+        const a = document.createElement('a'); 
+        a.href = url; 
+        a.download = filename; 
+        document.body.appendChild(a);
+        a.click(); 
+        a.remove(); // 触发完成后立刻拔除，绝不阻塞残留
+    }
+    
     function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
 </script>
 </body>
