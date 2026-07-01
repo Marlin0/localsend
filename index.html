@@ -79,17 +79,25 @@
         #lightbox-img { max-width: 90%; max-height: 80vh; object-fit: contain; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); transform-origin: center center; cursor: grab; transition: transform 0.05s ease-out; will-change: transform; touch-action: none; }
         #lightbox-img:active { cursor: grabbing; }
         
-        .lightbox-controls { height: 60px; display: flex; gap: 10px; width: 100%; justify-content: center; align-items: center; background: rgba(0,0,0,0.5); z-index: 10001; padding: 0 10px; flex-wrap: nowrap; overflow-x: auto; }
-        .lightbox-btn { background: #1677ff; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap; }
+        .lightbox-controls { height: 60px; display: flex; gap: 8px; width: 100%; justify-content: center; align-items: center; background: rgba(0,0,0,0.7); z-index: 10001; padding: 0 10px; flex-shrink: 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.3); }
+        .lightbox-btn { background: #1677ff; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; }
         .lightbox-btn.close-btn { background: #555; }
         .lightbox-btn.paint-btn { background: #fa8c16; }
         .lightbox-btn:hover { opacity: 0.9; }
         #screenshot-tip { display: none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 8px 16px; border-radius: 20px; z-index: 10000; font-size: 13px; pointer-events: none; text-align: center; width: 90%; max-width: 400px; }
 
-        /* 涂鸦画布容器样式 */
-        #paint-container { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10005; background: rgba(0,0,0,0.9); flex-direction: column; justify-content: center; align-items: center; }
-        #paint-canvas-wrapper { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
-        #paint-canvas { box-shadow: 0 4px 20px rgba(0,0,0,0.6); background: transparent; max-width: 95%; max-height: 80vh; touch-action: none; }
+        /* 专属可缩放/平移的高级画布视口 */
+        #paint-container { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10005; background: rgba(15,15,15,0.96); flex-direction: column; justify-content: center; align-items: center; }
+        #paint-canvas-viewport { flex: 1; width: 100%; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; cursor: crosshair; }
+        #paint-canvas { box-shadow: 0 4px 25px rgba(0,0,0,0.8); background: transparent; transform-origin: center center; will-change: transform; transition: transform 0.02s linear; display: block; }
+        
+        .toolbar-top { background: rgba(255,255,255,0.12); width: 100%; padding: 8px 12px; display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; border-bottom: 1px solid rgba(255,255,255,0.1); z-index: 10006; }
+        .toolbar-group { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); }
+        .toolbar-label { font-size: 12px; color: #ccc; font-weight: bold; }
+        .tool-select { background: #333; color: white; border: 1px solid #555; border-radius: 4px; padding: 4px 6px; font-size: 12px; cursor: pointer; outline: none; }
+        .tool-color { border: none; padding: 0; width: 28px; height: 24px; background: transparent; cursor: pointer; vertical-align: middle; }
+        .tool-range { width: 65px; cursor: pointer; accent-color: #fa8c16; vertical-align: middle; }
+        .paint-tip { font-size: 11px; color: #aaa; margin-left: 5px; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -120,8 +128,8 @@
 
     <div id="receiver-panel" class="section" style="display: none;">
         <p style="text-align: center; margin-top: 0;">请输入发送方屏幕上的 6 位口令：</p>
-        <input type="text" id="input-code" placeholder="输入 6 位数字" maxlength="6">
-        <button onclick="connectToRoom()">联络发送方</button>
+        <input type="text" id="input-code" placeholder="输入 6 位数字" maxlength="6" onkeypress="handleReceiverCodeKeyPress(event)">
+        <button onclick="connectToRoom()" id="btn-connect-peer">联络发送方</button>
     </div>
 
     <div id="transfer-zone">
@@ -152,21 +160,46 @@
         <img id="lightbox-img" src="" alt="放大查看" draggable="false">
     </div>
     <div class="lightbox-controls" id="lightbox-controls">
-        <button class="lightbox-btn" id="lightbox-reset-btn">🔍 原图/重置</button>
+        <button class="lightbox-btn" id="lightbox-true-size-btn" style="background:#52c41a;">🔍 100%原图细节</button>
+        <button class="lightbox-btn" id="lightbox-reset-btn">🔄 重置自适应</button>
         <button class="lightbox-btn" id="lightbox-download-btn">📥 下载原图</button>
         <button class="lightbox-btn paint-btn" id="lightbox-paint-btn">🎨 涂鸦修改</button>
         <button class="lightbox-btn close-btn" id="lightbox-close-btn">关闭</button>
     </div>
 </div>
 
+<!-- 可无限缩放平移的精细化涂鸦图层 -->
 <div id="paint-container">
-    <div id="paint-canvas-wrapper">
+    <div class="toolbar-top">
+        <div class="toolbar-group">
+            <span class="toolbar-label">工具:</span>
+            <select id="paint-tool" class="tool-select">
+                <option value="brush">🖌️ 自由画笔</option>
+                <option value="rect">⬜ 绘制矩形</option>
+                <option value="circle">⭕ 绘制圆形</option>
+                <option value="text">🔤 插入文字</option>
+                <option value="pan">✋ 拖拽画布(手机单指)</option>
+            </select>
+        </div>
+        <div class="toolbar-group">
+            <span class="toolbar-label">色彩:</span>
+            <input type="color" id="paint-color" class="tool-color" value="#ff4d4f">
+        </div>
+        <div class="toolbar-group">
+            <span class="toolbar-label">粗细:</span>
+            <input type="range" id="paint-size" class="tool-range" min="3" max="40" value="6">
+            <span id="size-val" style="font-size:11px; color:#fff; font-family:monospace; min-width:14px;">6px</span>
+        </div>
+        <span class="paint-tip">💡 提示：双指或鼠标滚轮可无限缩放图片；右键可直接拖拽平移。</span>
+    </div>
+    <div id="paint-canvas-viewport">
         <canvas id="paint-canvas"></canvas>
     </div>
     <div class="lightbox-controls">
+        <button class="lightbox-btn close-btn" id="paint-reset-cam-btn">🎯 缩放复位</button>
         <button class="lightbox-btn close-btn" id="paint-clear-btn">🧹 清除涂鸦</button>
-        <button class="lightbox-btn paint-btn" id="paint-send-btn">🚀 一键发送给对方</button>
-        <button class="lightbox-btn close-btn" id="paint-exit-btn">退出涂鸦</button>
+        <button class="lightbox-btn paint-btn" id="paint-send-btn">🚀 一键发送修改图</button>
+        <button class="lightbox-btn close-btn" id="paint-exit-btn">退出</button>
     </div>
 </div>
 
@@ -183,15 +216,23 @@
     let imgScale = 1; let imgPosX = 0; let imgPosY = 0; let isDragging = false; let startX = 0; let startY = 0;
     let iceConnectionTimer = null; 
 
-    // 手机端多点触控（双指缩放）状态跟踪变量
-    let startTouchDist = 0;
-    let startTouchScale = 1;
+    // 灯箱缩放控制变量
+    let startTouchDist = 0; let startTouchScale = 1;
 
-    // 涂鸦画布相关全局控制
+    // 💡 涂鸦画布核心相机状态机 (Viewport Camera)
     let currentLightboxImgUrl = "";
-    let isPainting = false;
+    let isDrawing = false;
+    let paintStartX = 0; let paintStartY = 0;
+    let canvasHistoryBackup = null; 
+
+    // 涂鸦时的变换参数（支持缩放与平移）
+    let camScale = 1; let camPosX = 0; let camPosY = 0;
+    let isCamPanning = false; let camStartX = 0; let camStartY = 0;
+    let pViewportTouchDist = 0; let pViewportTouchScale = 1;
+
     const paintCanvas = document.getElementById('paint-canvas');
     const paintCtx = paintCanvas.getContext('2d');
+    const paintViewport = document.getElementById('paint-canvas-viewport');
 
     const rtcConfig = {
         iceServers: [
@@ -208,6 +249,13 @@
         initMobileTouchEvents();
         initPaintEvents();
     });
+
+    function handleReceiverCodeKeyPress(e) {
+        if (e.key === 'Enter') {
+            const code = document.getElementById('input-code').value.trim();
+            if (code.length === 6) { e.preventDefault(); connectToRoom(); }
+        }
+    }
 
     function chooseRole(role) {
         const serverUrl = document.getElementById('server-url').value.trim();
@@ -234,19 +282,14 @@
         ws.onmessage = async (event) => {
             const message = JSON.parse(event.data);
             if (message.type === "error") {
-                alert(message.message);
-                statusEl.innerText = message.message;
-                statusEl.style.color = "#ff4d4f";
-                return;
+                alert(message.message); statusEl.innerText = message.message; statusEl.style.color = "#ff4d4f"; return;
             }
-
             if (message.type === "peer_ready" && myRole === "receiver") {
                 statusEl.innerText = "已寻获发送方，正在交换网络名片...";
                 const offer = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offer);
                 ws.send(jsonStr("signal", { room_id: roomCode, data: offer }));
             }
-            
             if (message.type === "signal") {
                 const signalData = message.data;
                 if (signalData.type === "offer") {
@@ -273,33 +316,24 @@
 
     function initWebRTC(isSender) {
         peerConnection = new RTCPeerConnection(rtcConfig);
-        
         iceConnectionTimer = setTimeout(() => {
             if (peerConnection && peerConnection.connectionState !== 'connected') {
-                statusEl.innerText = "⚠️ 打洞失败，当前网络环境受限（如严格对称型NAT），请尝试切换网络或配置 TURN 中转服务器。";
-                statusEl.style.color = "#ff4d4f";
+                statusEl.innerText = "⚠️ 打洞失败，当前网络环境受限。"; statusEl.style.color = "#ff4d4f";
             }
         }, 15000);
 
         peerConnection.onconnectionstatechange = () => {
             if (peerConnection.connectionState === 'connected') {
-                clearTimeout(iceConnectionTimer);
-                statusEl.innerText = "🟢 P2P 打洞成功！";
-                statusEl.style.color = "#52c41a";
+                clearTimeout(iceConnectionTimer); statusEl.innerText = "🟢 P2P 打洞成功！"; statusEl.style.color = "#52c41a";
             } else if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected') {
-                statusEl.innerText = "🔴 P2P 连接已断开";
-                statusEl.style.color = "#ff4d4f";
+                statusEl.innerText = "🔴 P2P 连接已断开"; statusEl.style.color = "#ff4d4f";
             }
         };
 
         if (!isSender) {
-            dataChannel = peerConnection.createDataChannel("p2pChannel");
-            setupDataChannel(dataChannel);
+            dataChannel = peerConnection.createDataChannel("p2pChannel"); setupDataChannel(dataChannel);
         } else {
-            peerConnection.ondatachannel = (event) => {
-                dataChannel = event.channel;
-                setupDataChannel(dataChannel);
-            };
+            peerConnection.ondatachannel = (event) => { dataChannel = event.channel; setupDataChannel(dataChannel); };
         }
         peerConnection.onicecandidate = (event) => {
             if (event.candidate) ws.send(jsonStr("signal", { room_id: roomCode, data: event.candidate }));
@@ -307,11 +341,8 @@
     }
 
     function setupDataChannel(channel) {
-        channel.bufferedAmountLowThreshold = 262144; 
-        channel.onbufferedamountlow = () => {
-            if (window.onDataChannelBufferLow) window.onDataChannelBufferLow();
-        };
-
+        channel.bufferedAmountLowThreshold = 262144;
+        channel.onbufferedamountlow = () => { if (window.onDataChannelBufferLow) window.onDataChannelBufferLow(); };
         channel.onopen = () => {
             peerIsOnline = true; updateStatusText();
             document.getElementById('online-toggle-container').style.display = 'flex';
@@ -325,21 +356,12 @@
             if (typeof event.data === "string") {
                 try {
                     const data = JSON.parse(event.data);
-                    if (data.type === "text") {
-                        appendMessage("peer", data.content);
-                    } else if (data.type === "file_meta") {
-                        pendingFileMeta = data;
-                        receivedChunks = [];
-                        isTransferCancelled = false;
-                        
-                        transferStats.totalBytes = data.size;
-                        transferStats.receivedBytes = 0;
-                        transferStats.startTime = Date.now();
-                        transferStats.lastUpdatedTime = Date.now();
-                        transferStats.lastId = data.id;
-
+                    if (data.type === "text") appendMessage("peer", data.content);
+                    else if (data.type === "file_meta") {
+                        pendingFileMeta = data; receivedChunks = []; isTransferCancelled = false;
+                        transferStats.totalBytes = data.size; transferStats.receivedBytes = 0;
+                        transferStats.startTime = Date.now(); transferStats.lastUpdatedTime = Date.now(); transferStats.lastId = data.id;
                         appendPlaceholder("peer", data.id, data.name, data.fileType.startsWith("image/"));
-                        statusEl.innerText = `正在接收: ${data.name}...`;
                     } else if (data.type === "file_end") {
                         if (pendingFileMeta && !isTransferCancelled) {
                             const blob = new Blob(receivedChunks, { type: pendingFileMeta.fileType });
@@ -348,28 +370,19 @@
                             finalizePlaceholder(pendingFileMeta.id, url, pendingFileMeta.name, pendingFileMeta.fileType.startsWith("image/"));
                             pendingFileMeta = null; receivedChunks = []; peerIsOnline = true; updateStatusText();
                         }
-                    } else if (data.type === "transfer_cancel") {
-                        handleRemoteCancel(data.id);
-                    } else if (data.type === "ping") {
-                        if (allowShareStatus) dataChannel.send(JSON.stringify({ type: "pong" }));
-                    } else if (data.type === "pong") {
-                        peerIsOnline = true; updateStatusText();
-                    }
+                    } else if (data.type === "transfer_cancel") handleRemoteCancel(data.id);
+                    else if (data.type === "ping") { if (allowShareStatus) dataChannel.send(JSON.stringify({ type: "pong" })); }
+                    else if (data.type === "pong") { peerIsOnline = true; updateStatusText(); }
                 } catch (e) { appendMessage("peer", event.data); }
             } else {
                 if (isTransferCancelled) return;
-                
                 receivedChunks.push(event.data);
                 transferStats.receivedBytes += event.data.byteLength;
-
                 let now = Date.now();
                 if (now - transferStats.lastUpdatedTime > 250 || transferStats.receivedBytes === transferStats.totalBytes) {
                     let elapsed = (now - transferStats.startTime) / 1000;
                     let speed = elapsed > 0 ? (transferStats.receivedBytes / elapsed) : 0;
-                    let remainingBytes = transferStats.totalBytes - transferStats.receivedBytes;
-                    let eta = speed > 0 ? Math.ceil(remainingBytes / speed) : 0;
-
-                    updateProgressBarElements(transferStats.lastId, transferStats.receivedBytes, transferStats.totalBytes, speed, eta);
+                    updateProgressBarElements(transferStats.lastId, transferStats.receivedBytes, transferStats.totalBytes, speed, speed > 0 ? Math.ceil((transferStats.totalBytes - transferStats.receivedBytes) / speed) : 0);
                     transferStats.lastUpdatedTime = now;
                 }
             }
@@ -378,72 +391,42 @@
 
     function cancelTransfer(id) {
         isTransferCancelled = true;
-        try {
-            if(dataChannel && dataChannel.readyState === 'open') {
-                dataChannel.send(JSON.stringify({ type: "transfer_cancel", id: id }));
-            }
-        } catch(e){}
-        applyCancelledStyle(id, "已取消传输");
-        receivedChunks = []; pendingFileMeta = null; updateStatusText();
+        try { if(dataChannel && dataChannel.readyState === 'open') dataChannel.send(JSON.stringify({ type: "transfer_cancel", id: id })); } catch(e){}
+        applyCancelledStyle(id, "已取消传输"); receivedChunks = []; pendingFileMeta = null; updateStatusText();
     }
-
     function handleRemoteCancel(id) {
-        isTransferCancelled = true;
-        applyCancelledStyle(id, "对方已取消传输");
-        receivedChunks = []; pendingFileMeta = null; updateStatusText();
+        isTransferCancelled = true; applyCancelledStyle(id, "对方已取消传输"); receivedChunks = []; pendingFileMeta = null; updateStatusText();
     }
-
     function applyCancelledStyle(id, text) {
-        const barFill = document.getElementById(`bar-fill-${id}`);
-        if (barFill) barFill.style.backgroundColor = '#ff4d4f';
-        
-        const percentEl = document.getElementById(`percent-${id}`);
-        if (percentEl) percentEl.innerText = text;
-        percentEl.classList.add('status-cancelled');
-
-        const speedEl = document.getElementById(`speed-${id}`);
-        if (speedEl) speedEl.style.display = 'none';
-
-        const etaEl = document.getElementById(`eta-${id}`);
-        if (etaEl) etaEl.style.display = 'none';
-
+        const barFill = document.getElementById(`bar-fill-${id}`); if (barFill) barFill.style.backgroundColor = '#ff4d4f';
+        const percentEl = document.getElementById(`percent-${id}`); if (percentEl) percentEl.innerText = text;
         const placeholderBody = document.getElementById(`placeholder-body-${id}`);
-        if (placeholderBody && placeholderBody.classList.contains('img-placeholder')) {
-            placeholderBody.innerHTML = `<span class="status-cancelled">❌ 传输中断</span>`;
-            placeholderBody.style.borderColor = '#ff4d4f';
-        }
+        if (placeholderBody && placeholderBody.classList.contains('img-placeholder')) placeholderBody.innerHTML = `<span class="status-cancelled">❌ 传输中断</span>`;
     }
-
     function updateStatusText() {
-        const isChannelOpen = dataChannel && dataChannel.readyState === 'open';
-        if (!isChannelOpen) { statusEl.innerText = "🔴 传输通道已断开"; statusEl.style.color = "#ff4d4f"; return; }
-        if (peerIsOnline) { statusEl.innerText = "🟢 P2P已直连 (对方在线)"; statusEl.style.color = "#52c41a"; } 
-        else { statusEl.innerText = "⏳ 对方未响应"; statusEl.style.color = "#fa8c16"; }
+        const isOpen = dataChannel && dataChannel.readyState === 'open';
+        if (!isOpen) { statusEl.innerText = "🔴 传输通道已断开"; statusEl.style.color = "#ff4d4f"; return; }
+        statusEl.innerText = peerIsOnline ? "🟢 P2P已直连 (对方在线)" : "⏳ 对方未响应";
+        statusEl.style.color = peerIsOnline ? "#52c41a" : "#fa8c16";
     }
-
     function toggleStatusSharing() { allowShareStatus = document.getElementById('allow-share-status').checked; }
-    
     function startOnlineStateTracker() {
         if (checkOnlineInterval) clearInterval(checkOnlineInterval);
         checkOnlineInterval = setInterval(() => {
-            if (!(dataChannel && dataChannel.readyState === 'open')) { updateStatusText(); return; }
+            if (!(dataChannel && dataChannel.readyState === 'open')) return;
             if(pendingFileMeta || isTransferCancelled) return;
-            peerIsOnline = false; 
-            try { dataChannel.send(JSON.stringify({ type: "ping" })); } catch(e){}
+            peerIsOnline = false; try { dataChannel.send(JSON.stringify({ type: "ping" })); } catch(e){}
             setTimeout(updateStatusText, 1000);
         }, 5000);
     }
 
     function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
-    
     function sendMessage() {
         if (clipboardFile) { sendClipboardImage(); return; }
         const input = document.getElementById('msg-input'); const text = input.value.trim();
         if (!text || !dataChannel || dataChannel.readyState !== 'open') return;
-        dataChannel.send(JSON.stringify({ type: "text", content: text }));
-        appendMessage("me", text); input.value = "";
+        dataChannel.send(JSON.stringify({ type: "text", content: text })); appendMessage("me", text); input.value = "";
     }
-
     function sendFile() {
         const fileInput = document.getElementById('file-input'); const file = fileInput.files[0];
         if (!file || !dataChannel || dataChannel.readyState !== 'open') return;
@@ -452,168 +435,72 @@
 
     function executeFileSending(file) {
         const fileId = "msg_" + Date.now() + "_" + Math.floor(Math.random()*1000);
-        const isImg = file.type.startsWith("image/");
-        isTransferCancelled = false;
-        
+        const isImg = file.type.startsWith("image/"); isTransferCancelled = false;
         appendPlaceholder("me", fileId, file.name, isImg);
-        
         let senderStats = { totalBytes: file.size, sentBytes: 0, startTime: Date.now(), lastUpdatedTime: Date.now() };
-        statusEl.innerText = `发送元数据: ${file.name}...`;
-        
-        dataChannel.send(JSON.stringify({
-            type: "file_meta",
-            id: fileId,
-            name: file.name,
-            size: file.size,
-            fileType: file.type
-        }));
+        dataChannel.send(JSON.stringify({ type: "file_meta", id: fileId, name: file.name, size: file.size, fileType: file.type }));
 
-        let offset = 0;
-        const reader = new FileReader();
-
+        let offset = 0; const reader = new FileReader();
         const readNextChunk = () => {
-            if (isTransferCancelled) { window.onDataChannelBufferLow = null; return; }
+            if (isTransferCancelled) return;
             if (offset >= file.size) {
                 dataChannel.send(JSON.stringify({ type: "file_end" }));
-                const fileUrl = URL.createObjectURL(file);
-                currentBlobToUrlMap.set(fileUrl, file.name);
-                finalizePlaceholder(fileId, fileUrl, file.name, isImg);
-                updateStatusText();
-                window.onDataChannelBufferLow = null;
-                return;
+                const fileUrl = URL.createObjectURL(file); currentBlobToUrlMap.set(fileUrl, file.name);
+                finalizePlaceholder(fileId, fileUrl, file.name, isImg); updateStatusText(); return;
             }
-
-            if (dataChannel.bufferedAmount > dataChannel.bufferedAmountLowThreshold) {
-                window.onDataChannelBufferLow = readNextChunk;
-                return;
-            }
-
-            const slice = file.slice(offset, offset + CHUNK_SIZE);
-            reader.readAsArrayBuffer(slice);
+            if (dataChannel.bufferedAmount > dataChannel.bufferedAmountLowThreshold) { window.onDataChannelBufferLow = readNextChunk; return; }
+            reader.readAsArrayBuffer(file.slice(offset, offset + CHUNK_SIZE));
         };
-
         reader.onload = (e) => {
             if (isTransferCancelled) return;
-            const buffer = e.target.result;
-            
             try {
-                dataChannel.send(buffer);
-                offset += buffer.byteLength;
-                senderStats.sentBytes += buffer.byteLength;
-
+                dataChannel.send(e.target.result); offset += e.target.result.byteLength; senderStats.sentBytes += e.target.result.byteLength;
                 let now = Date.now();
                 if (now - senderStats.lastUpdatedTime > 250 || senderStats.sentBytes === senderStats.totalBytes) {
-                    let elapsed = (now - senderStats.startTime) / 1000;
-                    let speed = elapsed > 0 ? (senderStats.sentBytes / elapsed) : 0;
-                    let remaining = senderStats.totalBytes - senderStats.sentBytes;
-                    let eta = speed > 0 ? Math.ceil(remaining / speed) : 0;
-
-                    updateProgressBarElements(fileId, senderStats.sentBytes, senderStats.totalBytes, speed, eta);
+                    let elapsed = (now - senderStats.startTime) / 1000; let speed = elapsed > 0 ? (senderStats.sentBytes / elapsed) : 0;
+                    updateProgressBarElements(fileId, senderStats.sentBytes, senderStats.totalBytes, speed, speed > 0 ? Math.ceil((senderStats.totalBytes - senderStats.sentBytes) / speed) : 0);
                     senderStats.lastUpdatedTime = now;
                 }
-                
                 readNextChunk(); 
-            } catch(err) {
-                console.error("流推送异常断裂:", err);
-            }
+            } catch(err){}
         };
-
-        window.onDataChannelBufferLow = readNextChunk;
-        readNextChunk();
+        window.onDataChannelBufferLow = readNextChunk; readNextChunk();
     }
 
     function appendPlaceholder(role, id, filename, isImg) {
         const box = document.getElementById('msg-box');
-        let contentHtml = "";
-        
-        if (isImg) {
-            contentHtml = `<div class="img-placeholder" id="placeholder-body-${id}"><div class="spinner"></div><span>图片拼命加载中...</span></div>`;
-        } else {
-            contentHtml = `<div class="chat-file" id="placeholder-body-${id}">📁 ${filename} (准备传输)</div>`;
-        }
-
-        box.innerHTML += `
-            <div class="msg-row ${role}" id="${id}">
-                <div class="bubble">
-                    ${contentHtml}
-                    <div class="progress-panel" id="progress-panel-${id}">
-                        <div class="progress-bar-bg"><div class="progress-bar-fill" id="bar-fill-${id}"></div></div>
-                        <div class="progress-meta">
-                            <span id="percent-${id}">0%</span>
-                            <span id="speed-${id}">0.00 MB/s</span>
-                            <span id="eta-${id}">剩余 --:--</span>
-                            <a class="cancel-link" id="cancel-btn-${id}" onclick="cancelTransfer('${id}')">🛑 取消</a>
-                        </div>
-                    </div>
-                </div>
-            </div>`;
+        let contentHtml = isImg ? `<div class="img-placeholder" id="placeholder-body-${id}"><div class="spinner"></div><span>加载中...</span></div>` : `<div class="chat-file" id="placeholder-body-${id}">📁 ${filename}</div>`;
+        box.innerHTML += `<div class="msg-row ${role}" id="${id}"><div class="bubble">${contentHtml}<div class="progress-panel" id="progress-panel-${id}"><div class="progress-bar-bg"><div class="progress-bar-fill" id="bar-fill-${id}"></div></div><div class="progress-meta"><span id="percent-${id}">0%</span><span id="speed-${id}">0.00 MB/s</span><span id="eta-${id}">剩余 --:--</span><a class="cancel-link" id="cancel-btn-${id}" onclick="cancelTransfer('${id}')">🛑 取消</a></div></div></div></div>`;
         setTimeout(() => { box.scrollTop = box.scrollHeight; }, 30);
     }
-
     function updateProgressBarElements(id, received, total, speedBytes, etaSeconds) {
-        const bar = document.getElementById(`bar-fill-${id}`);
-        const percentEl = document.getElementById(`percent-${id}`);
-        const speedEl = document.getElementById(`speed-${id}`);
-        const etaEl = document.getElementById(`eta-${id}`);
-        
-        if(!bar || isTransferCancelled) return;
-
-        let pct = Math.min(100, Math.floor((received / total) * 100));
-        bar.style.width = pct + "%";
-        percentEl.innerText = pct + "%";
-
-        let speedMB = speedBytes / (1024 * 1024);
-        speedEl.innerText = speedMB.toFixed(2) + " MB/s";
-
+        const bar = document.getElementById(`bar-fill-${id}`); if(!bar || isTransferCancelled) return;
+        let pct = Math.min(100, Math.floor((received / total) * 100)); bar.style.width = pct + "%";
+        document.getElementById(`percent-${id}`).innerText = pct + "%";
+        document.getElementById(`speed-${id}`).innerText = (speedBytes / (1024 * 1024)).toFixed(2) + " MB/s";
         if (pct >= 100) {
-            etaEl.innerText = "完成";
-            const cBtn = document.getElementById(`cancel-btn-${id}`);
-            if(cBtn) cBtn.style.display = 'none';
-        } else if (etaSeconds === 0 || isNaN(etaSeconds)) {
-            etaEl.innerText = "剩余 --:--";
+            document.getElementById(`eta-${id}`).innerText = "完成";
+            if(document.getElementById(`cancel-btn-${id}`)) document.getElementById(`cancel-btn-${id}`).style.display = 'none';
         } else {
-            let m = Math.floor(etaSeconds / 60);
-            let s = etaSeconds % 60;
-            etaEl.innerText = `剩余 ${m}:${s < 10 ? '0' : ''}${s}`;
+            document.getElementById(`eta-${id}`).innerText = `剩余 ${Math.floor(etaSeconds / 60)}:${etaSeconds % 60 < 10 ? '0' : ''}${etaSeconds % 60}`;
         }
     }
-
     function finalizePlaceholder(id, url, filename, isImg) {
         if(isTransferCancelled) return;
-        const row = document.getElementById(id);
-        if(!row) return;
-
-        const panel = document.getElementById(`progress-panel-${id}`);
-        if(panel) panel.style.display = 'none';
-
-        const bodyContainer = document.getElementById('placeholder-body-' + id);
-        if(!bodyContainer) return;
-
-        if (isImg) {
-            bodyContainer.outerHTML = `<img src="${url}" class="chat-img" alt="${filename}" title="点击放大/手势或鼠标拖动查看" onclick="openLightbox('${url}')">`;
-        } else {
-            bodyContainer.outerHTML = `
-                <a href="${url}" download="${filename}" class="chat-file">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
-                    ${filename}
-                </a>`;
-        }
-        const box = document.getElementById('msg-box');
-        setTimeout(() => { box.scrollTop = box.scrollHeight; }, 50);
+        if(document.getElementById(`progress-panel-${id}`)) document.getElementById(`progress-panel-${id}`).style.display = 'none';
+        const bodyContainer = document.getElementById('placeholder-body-' + id); if(!bodyContainer) return;
+        bodyContainer.outerHTML = isImg ? `<img src="${url}" class="chat-img" alt="${filename}" onclick="openLightbox('${url}')">` : `<a href="${url}" download="${filename}" class="chat-file">📁 ${filename}</a>`;
+        setTimeout(() => { document.getElementById('msg-box').scrollTop = document.getElementById('msg-box').scrollHeight; }, 50);
     }
 
     function handlePaste(e) {
         const items = (e.clipboardData || window.clipboardData).items;
         for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf("image") !== -1) {
-                setupImagePreview(items[i].getAsFile(), "Paste_" + Date.now() + ".png");
-                e.preventDefault(); break;
-            }
+            if (items[i].type.indexOf("image") !== -1) { setupImagePreview(items[i].getAsFile(), "Paste_" + Date.now() + ".png"); e.preventDefault(); break; }
         }
     }
-
     async function takeScreenshot() {
-        const tip = document.getElementById('screenshot-tip'); tip.style.display = 'block';
+        document.getElementById('screenshot-tip').style.display = 'block';
         try {
             const captureStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
             const videoTrack = captureStream.getVideoTracks()[0];
@@ -621,270 +508,242 @@
             video.onloadedmetadata = () => {
                 setTimeout(() => {
                     const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-                    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-                    videoTrack.stop(); tip.style.display = 'none';
+                    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height); videoTrack.stop(); document.getElementById('screenshot-tip').style.display = 'none';
                     canvas.toBlob((blob) => { setupImagePreview(blob, "Capture_" + Date.now() + ".png"); }, 'image/png');
                 }, 300); 
             };
-        } catch (err) { tip.style.display = 'none'; }
+        } catch (err) { document.getElementById('screenshot-tip').style.display = 'none'; }
     }
-
     function setupImagePreview(blob, filename) {
         clipboardFile = new File([blob], filename, { type: blob.type });
         document.getElementById('paste-preview-img').src = URL.createObjectURL(blob);
         document.getElementById('paste-preview-area').style.display = 'flex';
-        document.getElementById('msg-input').placeholder = "图片已锁定，按回车直接发送...";
-        document.getElementById('msg-input').focus();
+        document.getElementById('msg-input').placeholder = "图片已锁定，按回车直接发送..."; document.getElementById('msg-input').focus();
     }
-
-    function clearImagePreview() {
-        clipboardFile = null; document.getElementById('paste-preview-area').style.display = 'none';
-        document.getElementById('msg-input').placeholder = "输入消息或在此粘贴(Ctrl+V)图片...";
-    }
-
+    function clearImagePreview() { clipboardFile = null; document.getElementById('paste-preview-area').style.display = 'none'; document.getElementById('msg-input').placeholder = "输入消息或在此粘贴(Ctrl+V)图片..."; }
     function sendClipboardImage() { if (!clipboardFile) return; executeFileSending(clipboardFile); clearImagePreview(); }
 
-    // --- 初始化电脑端灯箱手势事件 ---
+    // --- 灯箱大图交互区 ---
     function initLightboxEvents() {
-        const wrapper = document.getElementById('lightbox-wrapper'); 
-        const img = document.getElementById('lightbox-img');
-        const closeBtn = document.getElementById('lightbox-close-btn');
-        const resetBtn = document.getElementById('lightbox-reset-btn');
-
-        // 鼠标滚轮缩放
+        const wrapper = document.getElementById('lightbox-wrapper'); const img = document.getElementById('lightbox-img');
         wrapper.addEventListener('wheel', (e) => {
-            e.preventDefault(); const speed = 0.12;
-            if (e.deltaY < 0) imgScale += speed; else imgScale = Math.max(0.15, imgScale - speed);
-            applyImgTransform();
+            e.preventDefault(); if (e.deltaY < 0) imgScale += 0.12; else imgScale = Math.max(0.15, imgScale - 0.12); applyImgTransform();
         }, { passive: false });
-
-        // 鼠标拖拽逻辑
         img.addEventListener('mousedown', (e) => { 
-            if (e.button !== 0) return; 
-            isDragging = true; 
-            startX = e.clientX - imgPosX; 
-            startY = e.clientY - imgPosY; 
-            e.stopPropagation(); 
+            if (e.button !== 0) return; isDragging = true; startX = e.clientX - imgPosX; startY = e.clientY - imgPosY; e.stopPropagation(); 
         });
-        window.addEventListener('mousemove', (e) => { 
-            if (!isDragging) return; 
-            imgPosX = e.clientX - startX; 
-            imgPosY = e.clientY - startY; 
-            applyImgTransform(); 
-        });
+        window.addEventListener('mousemove', (e) => { if (!isDragging) return; imgPosX = e.clientX - startX; imgPosY = e.clientY - startY; applyImgTransform(); });
         window.addEventListener('mouseup', () => { isDragging = false; });
-        img.addEventListener('dblclick', (e) => { e.stopPropagation(); resetLightboxState(); });
-
-        // 原图恢复与重置按钮绑定
-        resetBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            resetLightboxState();
+        document.getElementById('lightbox-true-size-btn').addEventListener('click', (e) => {
+            e.stopPropagation(); img.style.maxWidth = 'none'; img.style.maxHeight = 'none'; imgScale = 1; imgPosX = 0; imgPosY = 0; applyImgTransform();
         });
-
-        // 精准关闭绑定
-        wrapper.addEventListener('click', (e) => {
-            if (e.target === wrapper) { document.getElementById('lightbox').style.display = 'none'; }
-        });
-        closeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            document.getElementById('lightbox').style.display = 'none';
-        });
+        document.getElementById('lightbox-reset-btn').addEventListener('click', (e) => { e.stopPropagation(); resetLightboxState(); });
+        wrapper.addEventListener('click', (e) => { if (e.target === wrapper) document.getElementById('lightbox').style.display = 'none'; });
+        document.getElementById('lightbox-close-btn').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('lightbox').style.display = 'none'; });
     }
-
-    // --- 适配手机端移动放大/双指缩放/单指平移功能 ---
     function initMobileTouchEvents() {
         const img = document.getElementById('lightbox-img');
-        
         img.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                // 单指准备拖拽平移
-                isDragging = true;
-                startX = e.touches[0].clientX - imgPosX;
-                startY = e.touches[0].clientY - imgPosY;
-            } else if (e.touches.length === 2) {
-                // 双指准备进行双指手势缩放
-                isDragging = false;
-                startTouchDist = getTouchDistance(e.touches);
-                startTouchScale = imgScale;
-            }
+            if (e.touches.length === 1) { isDragging = true; startX = e.touches[0].clientX - imgPosX; startY = e.touches[0].clientY - imgPosY; } 
+            else if (e.touches.length === 2) { isDragging = false; startTouchDist = getTouchDistance(e.touches); startTouchScale = imgScale; }
         });
-
         img.addEventListener('touchmove', (e) => {
-            e.preventDefault(); // 阻止手机浏览器默认的滚动与弹性晃动
-            if (e.touches.length === 1 && isDragging) {
-                // 单指执行平移
-                imgPosX = e.touches[0].clientX - startX;
-                imgPosY = e.touches[0].clientY - startY;
-                applyImgTransform();
-            } else if (e.touches.length === 2) {
-                // 双指执行缩放
+            e.preventDefault();
+            if (e.touches.length === 1 && isDragging) { imgPosX = e.touches[0].clientX - startX; imgPosY = e.touches[0].clientY - startY; applyImgTransform(); } 
+            else if (e.touches.length === 2) {
                 const currentDist = getTouchDistance(e.touches);
-                if (startTouchDist > 0) {
-                    const factor = currentDist / startTouchDist;
-                    imgScale = Math.max(0.15, Math.min(8, startTouchScale * factor));
-                    applyImgTransform();
-                }
+                if (startTouchDist > 0) { imgScale = Math.max(0.15, Math.min(8, startTouchScale * (currentDist / startTouchDist))); applyImgTransform(); }
             }
         }, { passive: false });
-
-        img.addEventListener('touchend', (e) => {
-            isDragging = false;
-            if (e.touches.length < 2) startTouchDist = 0;
-        });
+        img.addEventListener('touchend', (e) => { isDragging = false; if (e.touches.length < 2) startTouchDist = 0; });
+    }
+    function getTouchDistance(touches) { return Math.sqrt(Math.pow(touches[0].clientX - touches[1].clientX, 2) + Math.pow(touches[0].clientY - touches[1].clientY, 2)); }
+    function applyImgTransform() { document.getElementById('lightbox-img').style.transform = `translate(${imgPosX}px, ${imgPosY}px) scale(${imgScale})`; }
+    function resetLightboxState() { const img = document.getElementById('lightbox-img'); img.style.maxWidth = '90%'; img.style.maxHeight = '80vh'; imgScale = 1; imgPosX = 0; imgPosY = 0; isDragging = false; applyImgTransform(); }
+    
+    function openLightbox(url) {
+        resetLightboxState(); document.getElementById('lightbox-img').src = url; currentLightboxImgUrl = url;
+        document.getElementById('lightbox-download-btn').onclick = (e) => { e.stopPropagation(); downloadFile(url, currentBlobToUrlMap.get(url) || "image.png"); };
+        document.getElementById('lightbox').style.display = 'flex';
     }
 
-    function getTouchDistance(touches) {
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
-        return Math.sqrt(dx * dx + dy * dy);
-    }
-
-    // --- 核心涂鸦与一键发送控制模块 ---
+    // --- 💡 核心高级可缩放平移涂鸦系统 ---
     function initPaintEvents() {
         const paintBtn = document.getElementById('lightbox-paint-btn');
         const paintContainer = document.getElementById('paint-container');
-        const exitPaintBtn = document.getElementById('paint-exit-btn');
-        const clearPaintBtn = document.getElementById('paint-clear-btn');
-        const sendPaintBtn = document.getElementById('paint-send-btn');
+        const toolSelect = document.getElementById('paint-tool');
+        const colorInput = document.getElementById('paint-color');
+        const sizeInput = document.getElementById('paint-size');
+        const sizeValSpan = document.getElementById('size-val');
 
-        // 打开涂鸦修改层
+        sizeInput.addEventListener('input', () => { sizeValSpan.innerText = sizeInput.value + "px"; });
+
         paintBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (!currentLightboxImgUrl) return;
-
-            const baseImg = new Image();
-            baseImg.src = currentLightboxImgUrl;
+            e.stopPropagation(); if (!currentLightboxImgUrl) return;
+            const baseImg = new Image(); baseImg.src = currentLightboxImgUrl;
             baseImg.onload = () => {
-                // 动态拉伸配置 Canvas 尺寸等于原图分辨率，保证一键发送出去的是无损合成图
                 paintCanvas.width = baseImg.naturalWidth || baseImg.width;
                 paintCanvas.height = baseImg.naturalHeight || baseImg.height;
-                
-                // 将原图无损渲染作为背景底图
                 paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
                 paintCtx.drawImage(baseImg, 0, 0);
-                
-                // 配置红色的极简涂鸦画笔属性
-                paintCtx.strokeStyle = "#ff4d4f";
-                paintCtx.lineWidth = Math.max(4, Math.floor(paintCanvas.width / 250)); // 自动按大图分辨率比例适配粗细
-                paintCtx.lineCap = "round";
-                paintCtx.lineJoin = "round";
 
+                // 根据屏幕尺寸自动匹配出最佳的涂鸦初始自适应相机视图
+                const containerW = paintViewport.clientWidth - 40;
+                const containerH = paintViewport.clientHeight - 40;
+                camScale = Math.min(1, containerW / paintCanvas.width, containerH / paintCanvas.height);
+                camPosX = 0; camPosY = 0;
+                applyCameraTransform();
+
+                document.getElementById('lightbox-wrapper').style.visibility = 'hidden';
+                document.getElementById('lightbox-controls').style.visibility = 'hidden';
                 paintContainer.style.display = "flex";
             };
         });
 
-        // 处理画笔的绘图坐标转换工具
-        function getCanvasMousePos(e, isTouch) {
+        function applyCameraTransform() { paintCanvas.style.transform = `translate(${camPosX}px, ${camPosY}px) scale(${camScale})`; }
+        document.getElementById('paint-reset-cam-btn').addEventListener('click', () => { camScale = 0.6; camPosX = 0; camPosY = 0; applyCameraTransform(); });
+
+        // 💡 监听涂鸦面板的鼠标滚轮 - 缩放画布
+        paintViewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            if (e.deltaY < 0) camScale += 0.08; else camScale = Math.max(0.1, camScale - 0.08);
+            applyCameraTransform();
+        }, { passive: false });
+
+        // 💡 精准计算相机逆向映射坐标（将屏幕像素精确转换成 Canvas 自然分辨率坐标）
+        function getCanvasMappedPos(e, isTouch) {
             const rect = paintCanvas.getBoundingClientRect();
             const clientX = isTouch ? e.touches[0].clientX : e.clientX;
             const clientY = isTouch ? e.touches[0].clientY : e.clientY;
-            // 完美映射视口像素到 Canvas 的自然真实物理像素分辨率
             return {
                 x: (clientX - rect.left) * (paintCanvas.width / rect.width),
                 y: (clientY - rect.top) * (paintCanvas.height / rect.height)
             };
         }
 
-        function startDrawing(e, isTouch) {
-            isPainting = true;
-            const pos = getCanvasMousePos(e, isTouch);
-            paintCtx.beginPath();
-            paintCtx.moveTo(pos.x, pos.y);
-        }
+        function startPaintOrPan(e, isTouch) {
+            const isRightClick = !isTouch && e.button === 2;
+            const currentTool = toolSelect.value;
 
-        function drawMove(e, isTouch) {
-            if (!isPainting) return;
-            if(isTouch) e.preventDefault();
-            const pos = getCanvasMousePos(e, isTouch);
-            paintCtx.lineTo(pos.x, pos.y);
-            paintCtx.stroke();
-        }
-
-        function stopDrawing() { isPainting = false; }
-
-        // 绑定鼠标绘图事件
-        paintCanvas.addEventListener('mousedown', (e) => startDrawing(e, false));
-        paintCanvas.addEventListener('mousemove', (e) => drawMove(e, false));
-        window.addEventListener('mouseup', stopDrawing);
-
-        // 绑定手机触摸绘图事件
-        paintCanvas.addEventListener('touchstart', (e) => startDrawing(e, true));
-        paintCanvas.addEventListener('touchmove', (e) => drawMove(e, true), { passive: false });
-        paintCanvas.addEventListener('touchend', stopDrawing);
-
-        // 彻底清除并重置背景
-        clearPaintBtn.addEventListener('click', () => {
-            const baseImg = new Image();
-            baseImg.src = currentLightboxImgUrl;
-            baseImg.onload = () => {
-                paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height);
-                paintCtx.drawImage(baseImg, 0, 0);
-            };
-        });
-
-        // 退出涂鸦图层
-        exitPaintBtn.addEventListener('click', () => { paintContainer.style.display = "none"; });
-
-        // 🚀 核心逻辑：一键发送涂鸦图片给对方
-        sendPaintBtn.addEventListener('click', () => {
-            if (!dataChannel || dataChannel.readyState !== 'open') {
-                alert("发送失败，通道当前未连接！");
+            // 触发平移画布逻辑 (当选择平移工具，或者在电脑端直接按住右键)
+            if (currentTool === 'pan' || isRightClick) {
+                isCamPanning = true;
+                const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+                const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+                camStartX = clientX - camPosX;
+                camStartY = clientY - camPosY;
                 return;
             }
 
-            // 将 Canvas 画布内容压制输出为无损二进制大对象 Blob
+            // 多指缩放处理
+            if (isTouch && e.touches.length === 2) {
+                isDrawing = false; pViewportTouchDist = getTouchDistance(e.touches); pViewportTouchScale = camScale; return;
+            }
+
+            // 触发正常涂鸦功能
+            isDrawing = true;
+            const pos = getCanvasMappedPos(e, isTouch);
+            paintStartX = pos.x; paintStartY = pos.y;
+
+            paintCtx.strokeStyle = colorInput.value;
+            paintCtx.fillStyle = colorInput.value;
+            paintCtx.lineWidth = parseInt(sizeInput.value);
+            paintCtx.lineCap = "round"; paintCtx.lineJoin = "round";
+            paintCtx.font = `${parseInt(sizeInput.value) * 3}px -apple-system, sans-serif`;
+
+            if (currentTool === 'brush') {
+                paintCtx.beginPath(); paintCtx.moveTo(pos.x, pos.y);
+            } else {
+                canvasHistoryBackup = paintCtx.getImageData(0, 0, paintCanvas.width, paintCanvas.height);
+            }
+
+            if (currentTool === 'text') {
+                isDrawing = false;
+                setTimeout(() => {
+                    const text = prompt("请输入您要插入的文字：");
+                    if (text && text.trim() !== "") paintCtx.fillText(text.trim(), paintStartX, paintStartY);
+                }, 50);
+            }
+        }
+
+        function movePaintOrPan(e, isTouch) {
+            // 平移执行
+            if (isCamPanning) {
+                if(isTouch) e.preventDefault();
+                const clientX = isTouch ? e.touches[0].clientX : e.clientX;
+                const clientY = isTouch ? e.touches[0].clientY : e.clientY;
+                camPosX = clientX - camStartX; camPosY = clientY - camStartY;
+                applyCameraTransform(); return;
+            }
+
+            // 双指手势缩放执行
+            if (isTouch && e.touches.length === 2) {
+                e.preventDefault(); const currentDist = getTouchDistance(e.touches);
+                if (pViewportTouchDist > 0) { camScale = Math.max(0.1, pViewportTouchScale * (currentDist / pViewportTouchDist)); applyCameraTransform(); }
+                return;
+            }
+
+            // 绘图执行
+            if (!isDrawing) return;
+            if(isTouch) e.preventDefault();
+            const pos = getCanvasMappedPos(e, isTouch);
+            const currentTool = toolSelect.value;
+
+            if (currentTool === 'brush') {
+                paintCtx.lineTo(pos.x, pos.y); paintCtx.stroke();
+            } else if ((currentTool === 'rect' || currentTool === 'circle') && canvasHistoryBackup) {
+                paintCtx.putImageData(canvasHistoryBackup, 0, 0);
+                paintCtx.beginPath();
+                const w = pos.x - paintStartX; const h = pos.y - paintStartY;
+                if (currentTool === 'rect') paintCtx.rect(paintStartX, paintStartY, w, h);
+                else if (currentTool === 'circle') paintCtx.arc(paintStartX, paintStartY, Math.sqrt(w*w + h*h), 0, 2 * Math.PI);
+                paintCtx.stroke();
+            }
+        }
+
+        function stopPaintOrPan() { isDrawing = false; isCamPanning = false; canvasHistoryBackup = null; }
+
+        // 屏蔽浏览器右键菜单，方便用右键进行极速平移
+        paintViewport.addEventListener('contextmenu', e => e.preventDefault());
+
+        paintViewport.addEventListener('mousedown', (e) => startPaintOrPan(e, false));
+        paintViewport.addEventListener('mousemove', (e) => movePaintOrPan(e, false));
+        window.addEventListener('mouseup', stopPaintOrPan);
+
+        paintViewport.addEventListener('touchstart', (e) => startPaintOrPan(e, true));
+        paintViewport.addEventListener('touchmove', (e) => movePaintOrPan(e, true), { passive: false });
+        paintViewport.addEventListener('touchend', stopPaintOrPan);
+
+        document.getElementById('paint-clear-btn').addEventListener('click', () => {
+            const baseImg = new Image(); baseImg.src = currentLightboxImgUrl;
+            baseImg.onload = () => { paintCtx.clearRect(0, 0, paintCanvas.width, paintCanvas.height); paintCtx.drawImage(baseImg, 0, 0); };
+        });
+
+        document.getElementById('paint-exit-btn').addEventListener('click', () => { 
+            paintContainer.style.display = "none"; 
+            document.getElementById('lightbox-wrapper').style.visibility = 'visible'; document.getElementById('lightbox-controls').style.visibility = 'visible';
+        });
+
+        document.getElementById('paint-send-btn').addEventListener('click', () => {
+            if (!dataChannel || dataChannel.readyState !== 'open') return alert("发送失败，通道断开！");
             paintCanvas.toBlob((blob) => {
                 if (!blob) return alert("生成图片失败！");
-                
-                // 拼装文件元属性，通过流直接发送
-                const drawFile = new File([blob], "Edit_" + Date.now() + ".png", { type: "image/png" });
-                executeFileSending(drawFile);
-
-                // 发送成功后关闭所有的灯箱和涂鸦修改层
-                paintContainer.style.display = "none";
+                executeFileSending(new File([blob], "Markup_" + Date.now() + ".png", { type: "image/png" }));
+                paintContainer.style.display = "none"; 
+                document.getElementById('lightbox-wrapper').style.visibility = 'visible'; document.getElementById('lightbox-controls').style.visibility = 'visible';
                 document.getElementById('lightbox').style.display = 'none';
             }, 'image/png');
         });
     }
 
-    function applyImgTransform() { document.getElementById('lightbox-img').style.transform = `translate(${imgPosX}px, ${imgPosY}px) scale(${imgScale})`; }
-    function resetLightboxState() { imgScale = 1; imgPosX = 0; imgPosY = 0; isDragging = false; applyImgTransform(); }
-    
-    function openLightbox(url) {
-        const lightbox = document.getElementById('lightbox'); const img = document.getElementById('lightbox-img');
-        resetLightboxState(); 
-        img.src = url;
-        currentLightboxImgUrl = url; // 暂存当前查看的图片地址供涂鸦使用
-
-        // 精准覆盖并保证每次打开无限次可下载，修复二次点击无响应的隐蔽 Bug
-        const downloadBtn = document.getElementById('lightbox-download-btn');
-        downloadBtn.onclick = (e) => { 
-            e.stopPropagation(); 
-            const filename = currentBlobToUrlMap.get(url) || "image.png";
-            downloadFile(url, filename); 
-        };
-
-        lightbox.style.display = 'flex';
-    }
-
     function jsonStr(action, obj) { return JSON.stringify({ action: action, ...obj }); }
-    
     function appendMessage(role, text) {
-        const box = document.getElementById('msg-box');
-        box.innerHTML += `<div class="msg-row ${role}"><div class="bubble">${escapeHTML(text)}</div></div>`;
+        const box = document.getElementById('msg-box'); box.innerHTML += `<div class="msg-row ${role}"><div class="bubble">${escapeHTML(text)}</div></div>`;
         box.scrollTop = box.scrollHeight;
     }
-
-    // 支持无限次调用、完毕后瞬间销毁碎片的稳健下载方案
     function downloadFile(url, filename) { 
-        const a = document.createElement('a'); 
-        a.href = url; 
-        a.download = filename; 
-        document.body.appendChild(a);
-        a.click(); 
-        a.remove(); // 触发完成后立刻拔除，绝不阻塞残留
+        const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
     }
-    
     function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)); }
 </script>
 </body>
