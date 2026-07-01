@@ -6,24 +6,24 @@
     <title>LocalSend 跨网网页 P2P 直连</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background: #f0f2f5; color: #333; margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 10px; background: #f0f2f5; color: #333; margin: 0; height: 100vh; height: 100dvh; display: flex; justify-content: center; align-items: center; }
         
-        .container { width: 95%; max-width: 850px; height: 96vh; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+        .container { width: 95%; max-width: 850px; height: 96vh; height: 96dvh; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
         h2 { text-align: center; color: #1677ff; margin: 0 0 10px 0; font-size: 20px; }
-        .section { margin-bottom: 15px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 8px; background: #fafafa; }
+        .section { margin-bottom: 15px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 8px; background: #fafafa; flex-shrink: 0; }
         .code-display { font-size: 32px; font-weight: bold; text-align: center; color: #52c41a; letter-spacing: 5px; margin: 10px 0; }
         
         input[type="text"] { width: 100%; padding: 10px; font-size: 16px; text-align: center; border: 1px solid #d9d9d9; border-radius: 6px; margin-bottom: 10px; }
         button { width: 100%; padding: 12px; font-size: 16px; background: #1677ff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         button:hover { background: #4096ff; }
         
-        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 13px; background: #fafafa; padding: 8px 12px; border-radius: 6px; border: 1px solid #f0f0f0; gap: 10px; }
+        .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 13px; background: #fafafa; padding: 8px 12px; border-radius: 6px; border: 1px solid #f0f0f0; gap: 10px; flex-shrink: 0; }
         .status { font-weight: bold; color: #666; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .online-toggle { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 13px; color: #555; user-select: none; white-space: nowrap; flex-shrink: 0; }
         
-        #transfer-zone { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+        #transfer-zone { display: none; flex: 1; flex-direction: column; overflow: hidden; min-height: 0; }
         #msg-box { 
-            flex: 1; border: 1px solid #ddd; background: #eaeaea; 
+            flex: 1; min-height: 0; border: 1px solid #ddd; background: #eaeaea; 
             overflow-y: auto; padding: 15px; margin-bottom: 10px; 
             font-size: 14px; border-radius: 6px; display: flex; flex-direction: column; gap: 15px;
         }
@@ -57,7 +57,7 @@
         .spinner { width: 20px; height: 20px; border: 2px solid #1890ff; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .input-panel { display: flex; flex-direction: column; gap: 8px; }
+        .input-panel { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
         #paste-preview-area { display: none; align-items: center; justify-content: space-between; gap: 10px; background: #f5f5f5; padding: 8px; border-radius: 6px; border: 1px dashed #ccc; width: 100%; }
         .preview-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
         #paste-preview-img { max-height: 50px; max-width: 70px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
@@ -160,17 +160,17 @@
     let transferStats = { totalBytes: 0, receivedBytes: 0, startTime: 0, lastUpdatedTime: 0, lastId: null };
 
     const CHUNK_SIZE = 32768; 
-    let imgScale = 1; let imgPosX = 0; let imgPosY = 0; let isDragging = false; let startX = 0; let startY = 0;
+    let imgScale = 1; let imgPosX = 0; let imgPosY = 0; let isDragging = false; let startX = 0; startY = 0;
     let iceConnectionTimer = null; // 用于打洞超时监测
 
-    // WebRTC 配置（已预留 TURN 支持模版）[cite: 3]
+    // WebRTC 配置（已预留 TURN 支持模版）
     const rtcConfig = {
         iceServers: [
             { urls: 'stun:stun.miwifi.com:3478' },
             { urls: 'stun:stun.chat.bilibili.com:3478' },
             { urls: 'stun:stun.hitv.com:3478' }
             /*
-            // [标准 TURN 扩容模版，消除 NAT 穿透失败][cite: 3]
+            // [标准 TURN 扩容模版，消除 NAT 穿透失败]
             ,{
                 urls: 'turn:your.turn.server:3478',
                 username: 'your_username',
@@ -211,7 +211,7 @@
         ws.onmessage = async (event) => {
             const message = JSON.parse(event.data);
             
-            // 加入错误处理弹窗（服务端限流告警对接）[cite: 3]
+            // 加入错误处理弹窗（服务端限流告警对接）
             if (message.type === "error") {
                 alert(message.message);
                 statusEl.innerText = message.message;
@@ -253,7 +253,7 @@
     function initWebRTC(isSender) {
         peerConnection = new RTCPeerConnection(rtcConfig);
         
-        // --- 15 秒打洞网络质量探活超时检测 ---[cite: 3]
+        // --- 15 秒打洞网络质量探活超时检测 ---
         iceConnectionTimer = setTimeout(() => {
             if (peerConnection && peerConnection.connectionState !== 'connected') {
                 statusEl.innerText = "⚠️ 打洞失败，当前网络环境受限（如严格对称型NAT），请尝试切换网络或配置 TURN 中转服务器。";
@@ -287,7 +287,7 @@
     }
 
     function setupDataChannel(channel) {
-        // --- 基于底层缓冲区事件的高级背压控制配置 ---[cite: 3]
+        // --- 基于底层缓冲区事件的高级背压控制配置 ---
         channel.bufferedAmountLowThreshold = 262144; // 触底水位线设为 256KB
         channel.onbufferedamountlow = () => {
             // 当缓存低于水位线时，纯事件驱动调用读取下一切片
@@ -331,7 +331,7 @@
                             pendingFileMeta = null; receivedChunks = []; peerIsOnline = true; updateStatusText();
                         }
                     } else if (data.type === "transfer_cancel") {
-                        handleRemoteCancel(data.id); // 接收远端中止指令，双向同步取消[cite: 3]
+                        handleRemoteCancel(data.id); // 接收远端中止指令，双向同步取消
                     } else if (data.type === "ping") {
                         if (allowShareStatus) dataChannel.send(JSON.stringify({ type: "pong" }));
                     } else if (data.type === "pong") {
@@ -363,17 +363,17 @@
         isTransferCancelled = true;
         try {
             if(dataChannel && dataChannel.readyState === 'open') {
-                dataChannel.send(JSON.stringify({ type: "transfer_cancel", id: id })); // 通知对方终止[cite: 3]
+                dataChannel.send(JSON.stringify({ type: "transfer_cancel", id: id })); // 通知对方终止
             }
         } catch(e){}
         applyCancelledStyle(id, "已取消传输");
-        receivedChunks = []; pendingFileMeta = null; updateStatusText(); // 释放内存[cite: 3]
+        receivedChunks = []; pendingFileMeta = null; updateStatusText(); // 释放内存
     }
 
     function handleRemoteCancel(id) {
         isTransferCancelled = true;
         applyCancelledStyle(id, "对方已取消传输");
-        receivedChunks = []; pendingFileMeta = null; updateStatusText(); // 同步释放缓存[cite: 3]
+        receivedChunks = []; pendingFileMeta = null; updateStatusText(); // 同步释放缓存
     }
 
     function applyCancelledStyle(id, text) {
@@ -440,7 +440,7 @@
         
         appendPlaceholder("me", fileId, file.name, isImg);
         
-        // 发送方实时独立进度统计[cite: 3]
+        // 发送方实时独立进度统计
         let senderStats = { totalBytes: file.size, sentBytes: 0, startTime: Date.now(), lastUpdatedTime: Date.now() };
         statusEl.innerText = `发送元数据: ${file.name}...`;
         
@@ -468,7 +468,7 @@
                 return;
             }
 
-            // 彻底废弃 while + setTimeout，基于 RTC 事件触发压榨带宽[cite: 3]
+            // 彻底废弃 while + setTimeout，基于 RTC 事件触发压榨带宽
             if (dataChannel.bufferedAmount > dataChannel.bufferedAmountLowThreshold) {
                 // 当缓存高于阈值，暂停切片读取，挂载委托等待 onbufferedamountlow 触发
                 window.onDataChannelBufferLow = readNextChunk;
@@ -488,7 +488,7 @@
                 offset += buffer.byteLength;
                 senderStats.sentBytes += buffer.byteLength;
 
-                // 本地计算 UI，摆脱信号回传的延迟感[cite: 3]
+                // 本地计算 UI，摆脱信号回传的延迟感
                 let now = Date.now();
                 if (now - senderStats.lastUpdatedTime > 250 || senderStats.sentBytes === senderStats.totalBytes) {
                     let elapsed = (now - senderStats.startTime) / 1000;
@@ -554,6 +554,7 @@
         speedEl.innerText = speedMB.toFixed(2) + " MB/s";
 
         if (pct >= 100) {
+            htmlEl = "完成";
             etaEl.innerText = "完成";
             const cBtn = document.getElementById(`cancel-btn-${id}`);
             if(cBtn) cBtn.style.display = 'none';
@@ -653,7 +654,7 @@
         document.getElementById('lightbox-download-btn').onclick = (e) => { e.stopPropagation(); downloadFile(url, currentBlobToUrlMap.get(url) || "image.png"); };
         lightbox.style.display = 'flex';
     }
-    function closeLightbox(e) { if (e.target.closest('.lightbox-controls') || e.target.id === 'lightbox-img') return; document.getElementById('lightbox').style.display = 'none'; }
+    function closeLightbox(e) { if (!e.target.classList.contains('close-btn') && e.target.closest('.lightbox-controls')) return; document.getElementById('lightbox').style.display = 'none'; }
     function jsonStr(action, obj) { return JSON.stringify({ action: action, ...obj }); }
     
     function appendMessage(role, text) {
